@@ -47,12 +47,17 @@ def valid_photo(photo):
 
 
 def parse_imageinfo(payload, venue_name):
-    if payload.get('error'): raise ValueError('Wikimedia returned an API error')
-    pages = payload.get('query', {}).get('pages', {})
+    if not isinstance(payload,dict) or payload.get('error'): raise ValueError('Wikimedia returned an API error')
+    query=payload.get('query',{})
+    if not isinstance(query,dict) or not isinstance(query.get('pages',{}),dict): raise ValueError('Invalid Wikimedia pages')
+    pages = query.get('pages', {})
     for page in pages.values():
+        if not isinstance(page,dict) or not isinstance(page.get('imageinfo',[]),list): raise ValueError('Invalid Wikimedia image metadata')
         info = (page.get('imageinfo') or [None])[0]
         if not info: continue
+        if not isinstance(info,dict) or not isinstance(info.get('extmetadata',{}),dict): raise ValueError('Invalid Wikimedia licence metadata')
         meta = info.get('extmetadata', {})
+        if any(not isinstance(v,dict) for v in meta.values()): raise ValueError('Invalid Wikimedia metadata field')
         value = lambda key: plain(meta.get(key, {}).get('value', ''))
         if value('Restrictions') or value('NonFree'): continue
         photo = {'provider':'Wikimedia Commons', 'filename':page.get('title',''),

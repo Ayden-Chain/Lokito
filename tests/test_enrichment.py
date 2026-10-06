@@ -124,6 +124,8 @@ def test_wikimedia_metadata_and_html_attribution():
     assert 'not necessarily a photo of the toilet' in markup and p['licence_url'] in markup
     payload['query']['pages']['1']['imageinfo'][0]['extmetadata'].pop('LicenseUrl')
     assert media.parse_imageinfo(payload,'Example Mall') is None
+    for invalid in ([], {'query':[]}, {'query':{'pages':[]}}, {'query':{'pages':{'1':{'imageinfo':{}}}}}):
+        with pytest.raises(ValueError): media.parse_imageinfo(invalid,'Example Mall')
 
 
 @pytest.mark.parametrize('field,value',[

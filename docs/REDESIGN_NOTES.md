@@ -1,5 +1,7 @@
 # Lokito redesign handover
 
+October 2026 update: the warm Lokito design now includes contextual venue labels, licensed venue photos below the primary directions action, a separate product-feedback journey and private owner results. See [ENRICHMENT_HANDOVER.md](ENRICHMENT_HANDOVER.md) for current decisions, commands and limitations, and [ENRICHMENT_QA.md](ENRICHMENT_QA.md) for current browser and test evidence. The remainder records the earlier redesign and its historical counts.
+
 Completed 22 September 2026. This is the consumer redesign of the existing Jakarta Streamlit MVP, not a new data acquisition or a production deployment.
 
 ## What changed and why

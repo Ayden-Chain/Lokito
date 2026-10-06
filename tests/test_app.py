@@ -115,7 +115,7 @@ def test_product_feedback_and_private_summary(tmp_path,monkeypatch):
     from facility_finder.feedback import summary
     db=tmp_path/'feedback.sqlite3'
     monkeypatch.setenv('LOKITO_FEEDBACK_DB',str(db))
-    monkeypatch.setenv('LOKITO_OWNER_PASSWORD','synthetic-owner-test-password')
+    monkeypatch.setenv('LOKITO_OWNER_PASSWORD','synthetic-owner-test-pässword')
     at=app()
     widget(at.button,'Help improve Lokito').click().run()
     widget(at.button,'Send feedback').click().run()
@@ -129,7 +129,7 @@ def test_product_feedback_and_private_summary(tmp_path,monkeypatch):
     at.run(); assert summary(db)['total']==1
     widget(at.button,'Data & trust').click().run()
     assert not any('PRIVATE COMMENT' in t.value for t in at.text)
-    widget(at.text_input,'Owner password').set_value('synthetic-owner-test-password')
+    widget(at.text_input,'Owner password').set_value('synthetic-owner-test-pässword')
     widget(at.button,'Unlock results').click().run()
     assert not at.exception and any('PRIVATE COMMENT' in t.value for t in at.text)
     widget(at.button,'Lock results').click().run()

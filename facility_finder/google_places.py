@@ -56,6 +56,7 @@ class GooglePlaces:
         matches=[]
         for p in result.get('places',[]):
             if not isinstance(p,dict) or not isinstance(p.get('location',{}),dict) or not isinstance(p.get('displayName',{}),dict) or not isinstance(p.get('types',[]),list): continue
+            if any(not isinstance(t,str) for t in p.get('types',[])): continue
             point=p.get('location',{})
             if normalized_name(p.get('displayName',{}).get('text','')) != normalized_name(venue['venue_name']): continue
             if not TYPES[venue['venue_category']].intersection(p.get('types',[])): continue

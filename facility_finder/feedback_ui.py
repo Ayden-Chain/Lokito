@@ -58,7 +58,7 @@ def render_owner():
             if submitted:
                 if time.monotonic()<st.session_state.get('owner_retry_at',0):
                     st.warning('Please wait a moment before trying again.')
-                elif hmac.compare_digest(password,secret):
+                elif hmac.compare_digest(password.encode(),secret.encode()):
                     st.session_state.owner_proof=hmac.digest(secret.encode(),b'lokito-owner-results','sha256').hex()
                     st.rerun()
                 else:

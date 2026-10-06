@@ -21,6 +21,9 @@ People can find a mall or station on a conventional map, yet still need to inves
 - Full-snapshot Data & trust view, category counts, attribute completeness and download options.
 - Local SQLite observation form with availability, optional cleanliness and issue notes. All reports remain pending review.
 - Separate raw snapshots and normalized JSON/CSV; the app never queries Overpass on a normal page load.
+- Separate venue context for malls, SPBU, stations and six other venue categories, with conservative “near”, “at” and “inside” wording.
+- Licensed Wikimedia venue photographs, source/creator/licence links, and optional Google Places photos when configured.
+- Product feedback stored separately from facility observations, with password-gated owner results.
 - Business context and demo material, plus tested offline API fallback.
 
 ## Quick start on this computer
@@ -37,7 +40,7 @@ Open [Lokito](http://127.0.0.1:8501). If it is already running, open that addres
 
 ## Install on another computer
 
-Use Python 3.12 (tested); Python 3.11+ should work but was not tested here. Copy the source and `data/raw` + `data/processed` folders, excluding `.venv`.
+Use Python 3.12 (tested); Python 3.11+ should work but was not tested here. Copy the source and `data/raw`, `data/processed` and `data/enrichment` folders, excluding `.venv` and local SQLite databases.
 
 macOS/Linux, from the copied project folder:
 
@@ -59,6 +62,43 @@ py -3.12 -m venv .venv
 `requirements.txt` keeps direct dependencies small. Streamlit **1.63+** is required for stateful popovers; the tested lock pins 1.63.0. `requirements-lock.txt` records every exact package version used for this run; install it instead to reproduce this tested environment where compatible wheels are available. No keys, accounts, Docker or cloud infrastructure are required.
 
 ## Data acquisition and audit
+
+For venue context and photos, use the **separate enrichment command** below. The original facility snapshot was preserved during this iteration. The facility ingestion refresh further down deliberately replaces the seed and is not needed to update venues.
+
+```bash
+python -m facility_finder.enrich_places
+python -m facility_finder.enrich_places --refresh --photo-limit 60
+```
+
+The first command reads a valid existing enrichment cache without remote calls. If none exists, it acquires one. The refresh explicitly queries venue geometry and media; failures retain the last valid cache. Normal app reruns read local data. Browser image and map-tile requests still need internet.
+
+The 6 October cache adds context to **1,170 facilities**, including **65 of the 141 toilets**. **36 facilities, including 21 toilets**, have Wikimedia venue photographs. See [the enrichment handover](docs/ENRICHMENT_HANDOVER.md) for relationship counts, thresholds, setup, feedback privacy, QA and limitations.
+
+### Optional Google Places and owner feedback access
+
+The app runs fully without Google credentials. `.env.example` lists supported variables; `.env` files are **not automatically loaded**. Configure variables in the same terminal used to start Streamlit, or in your hosting environment. For macOS zsh, this prompts without displaying the key:
+
+```bash
+read -rs "GOOGLE_MAPS_API_KEY?Google Maps API key: "
+export GOOGLE_MAPS_API_KEY
+export LOKITO_PRIVACY_URL="https://your-domain.example/privacy"
+export LOKITO_TERMS_URL="https://your-domain.example/terms"
+python -m facility_finder.enrich_places --google-map-ids
+```
+
+Replace the two example URLs with your published policies. Enable Places API (New) and billing in your Google Cloud project, restrict the key to the required API and your server where practical, and set quotas/budget alerts. The ID-matching command may incur charges; it processes at most 50 unique venues per invocation. Google photos require a separate explicit click and are displayed on a separate page without an OSM map. Only Place IDs persist. Full policy and billing boundaries are in the handover.
+
+To unlock private feedback results under Data & trust:
+
+```bash
+read -rs "LOKITO_OWNER_PASSWORD?Owner results password: "
+export LOKITO_OWNER_PASSWORD
+python -m streamlit run app.py --server.address 127.0.0.1 --server.port 8501
+```
+
+Choose your own password. Leave the variable unset to keep results unavailable. Feedback is stored in `data/product-feedback.sqlite3` on the machine running the app. A hosted app needs durable storage and appropriate access controls before relying on this file for research. GitHub stores the code; pushing the repository does not itself host the running app.
+
+### Original facility ingestion
 
 Use the supplied cache without making an external request:
 
@@ -99,17 +139,28 @@ facility_finder/
   presentation.py              Selection, formatting and directions URLs
   ui.py                        Consumer cards, brand and detail helpers
   evidence.py                  Data & trust and venture content
-assets/                        Lokito SVG mark and responsive warm stylesheet
   community.py                 Local SQLite reports and future verification schema
   report.py                    Regenerates the readable quality assessment
+  enrichment.py                Pure venue matching and cache validation
+  enrich_places.py             Explicit venue/media acquisition command
+  media.py                     Wikimedia resolution and licence checks
+  venue_ui.py                  Context labels, photo rendering and attribution
+  google_places.py             Optional Places adapter and isolated photo view
+  feedback.py                  Separate validated product-feedback persistence
+  feedback_ui.py               Research form and owner-gated summary
+assets/                        Lokito SVG mark and responsive warm stylesheet
 data/
   raw/                         Original response, exact query and provenance
   processed/                   facilities.json, facilities.csv, quality.json
   community.sqlite3            Created locally; starts with no reports, git-ignored
+  enrichment/                  Authoritative places.json bundle and venue snapshots
+  product-feedback.sqlite3     Created on first real feedback; git-ignored
 docs/
   VENTURE_BRIEF.md              Business framing, assumptions and lecturer demo
   QA_RESULTS.md                Original MVP test record
   REDESIGN_NOTES.md             Design decisions, references and final visual QA
+  ENRICHMENT_HANDOVER.md        October implementation, setup and coverage
+  ENRICHMENT_QA.md              October test and browser evidence
   data_audit.ipynb              Inspectable audit calculations
 tests/                         Core and Streamlit integration tests
 DATA_QUALITY.md                 Measured seed-data assessment
@@ -141,7 +192,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-Tests use explicitly synthetic edge-case fixtures and temporary databases, alongside the **real** bundled cache. Synthetic fixtures are never inserted into the real dataset. Streamlit AppTest checks category changes, empty searches, custom locations, strict filters and observation submission. Browser checks cover actual map tiles, markers and popup rendering; AppTest alone cannot verify iframe JavaScript. The redesign passes **30 tests**; see [docs/REDESIGN_NOTES.md](docs/REDESIGN_NOTES.md) for responsive browser QA and [docs/QA_RESULTS.md](docs/QA_RESULTS.md) for the original baseline.
+Tests use explicitly synthetic edge-case fixtures and temporary databases, alongside the **real** bundled cache. Synthetic fixtures are never inserted into the real dataset. Streamlit AppTest checks category changes, empty searches, custom locations, strict filters, observations, enrichment fallback and private product feedback. Live HTTP requests are blocked throughout the test suite; Google responses are mocked. The October enrichment iteration passes **68 tests**, preserving all 30 earlier tests. See [the October QA record](docs/ENRICHMENT_QA.md), [redesign notes](docs/REDESIGN_NOTES.md), and the historical [MVP QA](docs/QA_RESULTS.md).
 
 ## Sources and attribution
 
