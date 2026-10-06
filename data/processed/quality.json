@@ -1,0 +1,779 @@
+{
+  "total_facilities": 5824,
+  "grain": "one qualifying OSM node, way, or relation",
+  "scope": "Jakarta administrative area, ISO3166-2=ID-JK",
+  "fetched_at": "2026-09-14T13:15:32.318207+00:00",
+  "osm_base_timestamp": "2026-09-14T13:14:00Z",
+  "by_category": {
+    "toilets": 141,
+    "place_of_worship": 5645,
+    "drinking_water": 38
+  },
+  "by_osm_type": {
+    "node": 315,
+    "relation": 7,
+    "way": 5502
+  },
+  "completeness": {
+    "name": {
+      "known": 5393,
+      "total": 5824,
+      "percent": 92.6
+    },
+    "access": {
+      "known": 45,
+      "total": 5824,
+      "percent": 0.77
+    },
+    "opening_hours": {
+      "known": 14,
+      "total": 5824,
+      "percent": 0.24
+    },
+    "wheelchair": {
+      "known": 36,
+      "total": 5824,
+      "percent": 0.62
+    },
+    "fee": {
+      "known": 27,
+      "total": 5824,
+      "percent": 0.46
+    }
+  },
+  "completeness_by_category": {
+    "toilets": {
+      "name": {
+        "known": 16,
+        "total": 141,
+        "percent": 11.35
+      },
+      "access": {
+        "known": 43,
+        "total": 141,
+        "percent": 30.5
+      },
+      "opening_hours": {
+        "known": 3,
+        "total": 141,
+        "percent": 2.13
+      },
+      "wheelchair": {
+        "known": 16,
+        "total": 141,
+        "percent": 11.35
+      },
+      "fee": {
+        "known": 23,
+        "total": 141,
+        "percent": 16.31
+      }
+    },
+    "place_of_worship": {
+      "name": {
+        "known": 5347,
+        "total": 5645,
+        "percent": 94.72
+      },
+      "access": {
+        "known": 0,
+        "total": 5645,
+        "percent": 0.0
+      },
+      "opening_hours": {
+        "known": 11,
+        "total": 5645,
+        "percent": 0.19
+      },
+      "wheelchair": {
+        "known": 18,
+        "total": 5645,
+        "percent": 0.32
+      },
+      "fee": {
+        "known": 0,
+        "total": 5645,
+        "percent": 0.0
+      }
+    },
+    "drinking_water": {
+      "name": {
+        "known": 30,
+        "total": 38,
+        "percent": 78.95
+      },
+      "access": {
+        "known": 2,
+        "total": 38,
+        "percent": 5.26
+      },
+      "opening_hours": {
+        "known": 0,
+        "total": 38,
+        "percent": 0.0
+      },
+      "wheelchair": {
+        "known": 2,
+        "total": 38,
+        "percent": 5.26
+      },
+      "fee": {
+        "known": 4,
+        "total": 38,
+        "percent": 10.53
+      }
+    }
+  },
+  "ingestion": {
+    "raw_facility_elements": 5824,
+    "missing_or_invalid_coordinates": 0,
+    "duplicate_osm_elements_removed": 0,
+    "rejected_identifiers": 0
+  },
+  "normalized_duplicate_ids": 0,
+  "normalized_missing_coordinates": 0,
+  "near_duplicate_pair_count": 104,
+  "near_duplicate_pairs": [
+    {
+      "facility_id_a": "node/13457518802",
+      "facility_id_b": "node/13457635101",
+      "distance_m": 2.2,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/4905517380",
+      "facility_id_b": "node/4905517382",
+      "distance_m": 15.6,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/5055157294",
+      "facility_id_b": "node/5057618607",
+      "distance_m": 14.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1092171491",
+      "facility_id_b": "way/1092193329",
+      "distance_m": 20.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1092171491",
+      "facility_id_b": "way/1092193330",
+      "distance_m": 14.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1092193329",
+      "facility_id_b": "way/1092193330",
+      "distance_m": 8.6,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12799025255",
+      "facility_id_b": "way/1382445423",
+      "distance_m": 0.1,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/9747971568",
+      "facility_id_b": "way/1427442573",
+      "distance_m": 0.3,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/13731328348",
+      "facility_id_b": "way/1499487677",
+      "distance_m": 5.6,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/14053410201",
+      "facility_id_b": "way/154825420",
+      "distance_m": 0.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/4255685567",
+      "facility_id_b": "way/154831745",
+      "distance_m": 28.4,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/154831745",
+      "facility_id_b": "way/154831748",
+      "distance_m": 22.4,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12738888467",
+      "facility_id_b": "way/154835526",
+      "distance_m": 0.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12739080709",
+      "facility_id_b": "way/155109820",
+      "distance_m": 0.1,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/10738633005",
+      "facility_id_b": "way/155114675",
+      "distance_m": 3.0,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/12739080711",
+      "facility_id_b": "way/155115903",
+      "distance_m": 3.2,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/13919378024",
+      "facility_id_b": "way/156919217",
+      "distance_m": 0.3,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/11779824179",
+      "facility_id_b": "way/157354636",
+      "distance_m": 0.9,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/157357282",
+      "facility_id_b": "way/157357302",
+      "distance_m": 27.6,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12705111484",
+      "facility_id_b": "way/157361062",
+      "distance_m": 1.4,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12705111483",
+      "facility_id_b": "way/157361068",
+      "distance_m": 0.9,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/13727139396",
+      "facility_id_b": "way/157362104",
+      "distance_m": 1.4,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12705219136",
+      "facility_id_b": "way/157397567",
+      "distance_m": 8.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/6069756938",
+      "facility_id_b": "way/162931516",
+      "distance_m": 7.8,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12703170985",
+      "facility_id_b": "way/162932055",
+      "distance_m": 2.8,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/11779865359",
+      "facility_id_b": "way/176770280",
+      "distance_m": 1.9,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "way/154838006",
+      "facility_id_b": "way/244652429",
+      "distance_m": 23.9,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/157356702",
+      "facility_id_b": "way/283060112",
+      "distance_m": 28.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/314061975",
+      "facility_id_b": "way/314061982",
+      "distance_m": 25.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/314061978",
+      "facility_id_b": "way/314357691",
+      "distance_m": 22.8,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/314208587",
+      "facility_id_b": "way/314813164",
+      "distance_m": 15.6,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/315408819",
+      "facility_id_b": "way/315408823",
+      "distance_m": 29.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/315412065",
+      "facility_id_b": "way/315412068",
+      "distance_m": 24.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/315412064",
+      "facility_id_b": "way/315412069",
+      "distance_m": 17.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/316912721",
+      "facility_id_b": "way/316912731",
+      "distance_m": 17.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/334979860",
+      "facility_id_b": "way/334979862",
+      "distance_m": 28.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/334983727",
+      "facility_id_b": "way/334983729",
+      "distance_m": 3.4,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "way/334985247",
+      "facility_id_b": "way/334985248",
+      "distance_m": 25.9,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/334989555",
+      "facility_id_b": "way/334989556",
+      "distance_m": 28.9,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1498994696",
+      "facility_id_b": "way/481941865",
+      "distance_m": 0.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1498824028",
+      "facility_id_b": "way/482340620",
+      "distance_m": 0.0,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/12705219135",
+      "facility_id_b": "way/482380731",
+      "distance_m": 1.8,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/483349407",
+      "facility_id_b": "way/483349513",
+      "distance_m": 21.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/13725249147",
+      "facility_id_b": "way/483363989",
+      "distance_m": 1.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/483385013",
+      "facility_id_b": "way/483385084",
+      "distance_m": 29.4,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/157349575",
+      "facility_id_b": "way/483574584",
+      "distance_m": 18.5,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/155951075",
+      "facility_id_b": "way/483576667",
+      "distance_m": 18.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/283286981",
+      "facility_id_b": "way/484448221",
+      "distance_m": 27.3,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/157357312",
+      "facility_id_b": "way/484851668",
+      "distance_m": 24.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/283066524",
+      "facility_id_b": "way/485778028",
+      "distance_m": 28.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/484903106",
+      "facility_id_b": "way/487370418",
+      "distance_m": 20.5,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/8263061974",
+      "facility_id_b": "way/495191557",
+      "distance_m": 2.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/496586371",
+      "facility_id_b": "way/496586379",
+      "distance_m": 23.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/315571726",
+      "facility_id_b": "way/496829699",
+      "distance_m": 27.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/6068774613",
+      "facility_id_b": "way/496829699",
+      "distance_m": 25.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/497548992",
+      "facility_id_b": "way/497549001",
+      "distance_m": 19.5,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1295492652",
+      "facility_id_b": "way/498423493",
+      "distance_m": 24.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/155931499",
+      "facility_id_b": "way/498488180",
+      "distance_m": 21.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/498723408",
+      "facility_id_b": "way/498723411",
+      "distance_m": 27.5,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/155956163",
+      "facility_id_b": "way/500044076",
+      "distance_m": 20.5,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/500300709",
+      "facility_id_b": "way/500300711",
+      "distance_m": 18.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12497761268",
+      "facility_id_b": "way/500834476",
+      "distance_m": 0.3,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/9176855321",
+      "facility_id_b": "way/501881181",
+      "distance_m": 0.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/7150339959",
+      "facility_id_b": "way/505031571",
+      "distance_m": 2.5,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "way/505818956",
+      "facility_id_b": "way/505818957",
+      "distance_m": 28.4,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/501559896",
+      "facility_id_b": "way/507503043",
+      "distance_m": 26.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/509124034",
+      "facility_id_b": "way/509124035",
+      "distance_m": 25.5,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/6665039443",
+      "facility_id_b": "way/509172894",
+      "distance_m": 6.4,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "way/157363140",
+      "facility_id_b": "way/511963815",
+      "distance_m": 25.3,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "way/512238494",
+      "facility_id_b": "way/512238497",
+      "distance_m": 15.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1103567336",
+      "facility_id_b": "way/513522160",
+      "distance_m": 26.8,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "way/314510695",
+      "facility_id_b": "way/513554974",
+      "distance_m": 22.6,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/498427318",
+      "facility_id_b": "way/514093085",
+      "distance_m": 16.8,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1331227709",
+      "facility_id_b": "way/514126277",
+      "distance_m": 24.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/516619343",
+      "facility_id_b": "way/516619344",
+      "distance_m": 18.0,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/5271847429",
+      "facility_id_b": "way/518478942",
+      "distance_m": 3.6,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/314082996",
+      "facility_id_b": "way/519953291",
+      "distance_m": 27.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/520271910",
+      "facility_id_b": "way/520271930",
+      "distance_m": 29.3,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/315261670",
+      "facility_id_b": "way/522384396",
+      "distance_m": 22.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/317480411",
+      "facility_id_b": "way/522414804",
+      "distance_m": 24.5,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/314072498",
+      "facility_id_b": "way/523796036",
+      "distance_m": 27.3,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/315572041",
+      "facility_id_b": "way/524819975",
+      "distance_m": 28.4,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/314513086",
+      "facility_id_b": "way/525538746",
+      "distance_m": 17.9,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/315566040",
+      "facility_id_b": "way/525748659",
+      "distance_m": 19.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/525766024",
+      "facility_id_b": "way/525766035",
+      "distance_m": 23.8,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "way/525766009",
+      "facility_id_b": "way/525766094",
+      "distance_m": 18.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/314507540",
+      "facility_id_b": "way/527506202",
+      "distance_m": 16.8,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/528610298",
+      "facility_id_b": "way/880294257",
+      "distance_m": 21.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/11368580742",
+      "facility_id_b": "node/11368580743",
+      "distance_m": 12.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/11919789938",
+      "facility_id_b": "node/11919789966",
+      "distance_m": 2.5,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/12073657865",
+      "facility_id_b": "node/12073657866",
+      "distance_m": 2.3,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/13626234370",
+      "facility_id_b": "node/13626244754",
+      "distance_m": 1.3,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/13626234370",
+      "facility_id_b": "node/13626270812",
+      "distance_m": 3.7,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/13626244754",
+      "facility_id_b": "node/13626270812",
+      "distance_m": 4.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/5050327046",
+      "facility_id_b": "node/5050346481",
+      "distance_m": 29.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "node/5050351351",
+      "facility_id_b": "node/5050351360",
+      "distance_m": 11.7,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/5050351351",
+      "facility_id_b": "node/5050351361",
+      "distance_m": 17.5,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "node/5050351360",
+      "facility_id_b": "node/5050351361",
+      "distance_m": 26.4,
+      "same_name": true
+    },
+    {
+      "facility_id_a": "way/1150377692",
+      "facility_id_b": "way/1150377693",
+      "distance_m": 1.2,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1218851814",
+      "facility_id_b": "way/1218851815",
+      "distance_m": 18.1,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/1218851816",
+      "facility_id_b": "way/1218851817",
+      "distance_m": 14.4,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/158980721",
+      "facility_id_b": "way/158980733",
+      "distance_m": 24.6,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/326246997",
+      "facility_id_b": "way/326247154",
+      "distance_m": 17.5,
+      "same_name": false
+    },
+    {
+      "facility_id_a": "way/511602697",
+      "facility_id_b": "way/511602772",
+      "distance_m": 12.1,
+      "same_name": false
+    }
+  ],
+  "wheelchair_values": {
+    "unknown": 5788,
+    "yes": 16,
+    "limited": 12,
+    "no": 7,
+    "designated": 1
+  },
+  "access_values": {
+    "unknown": 5779,
+    "customers": 13,
+    "permit": 1,
+    "yes": 30,
+    "permissive": 1
+  },
+  "raw_files": [
+    "2026-09-14T13-15-32_2b42ece403d3.json"
+  ]
+}

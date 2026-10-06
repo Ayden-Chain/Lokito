@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+data/community.sqlite3*
+data/product-feedback.sqlite3*
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+.DS_Store

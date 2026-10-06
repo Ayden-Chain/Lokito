@@ -1,0 +1,49 @@
+"""Streamlit integration tests run against the real local cache, without Overpass."""
+from pathlib import Path
+
+from streamlit.testing.v1 import AppTest
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def widget(items, label):
+    return next(item for item in items if item.label == label)
+
+
+def test_app_launch_categories_empty_results_and_location():
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception
+    assert app.title[0].value == "Find what you need. Nearby."
+    assert int(app.metric[0].value.replace(",", "")) > 0
+    for category in ("🕌 Prayer / worship", "💧 Drinking water", "♿ Accessible facility", "All facilities"):
+        app.radio[0].set_value(category).run()
+        assert not app.exception
+    widget(app.text_input, "Search name or address").set_value("nonexistent-facility-qa-xyz").run()
+    assert not app.exception and app.metric[0].value == "0"
+    assert any("No mapped facilities" in item.value for item in app.info)
+    widget(app.text_input, "Search name or address").set_value("").run()
+    widget(app.selectbox, "Start near").set_value("Custom coordinates").run()
+    assert not app.exception
+    widget(app.number_input, "Latitude").set_value(0.0).run()
+    assert any("outside" in item.value for item in app.warning)
+    widget(app.checkbox, "Free of charge tagged").check().run()
+    widget(app.checkbox, "Wheelchair access tagged yes").check().run()
+    assert not app.exception
+
+
+def test_local_observation_ui_isolated_from_real_database(tmp_path, monkeypatch):
+    import facility_finder.community as community
+    real_add, real_list = community.add_report, community.list_reports
+    db = tmp_path / "test-reports.sqlite3"
+    monkeypatch.setattr(community, "add_report", lambda *args, **kwargs: real_add(*args, **kwargs, path=db))
+    monkeypatch.setattr(community, "list_reports", lambda *args, **kwargs: real_list(*args, **kwargs, path=db))
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
+    assert not app.exception
+    widget(app.selectbox, "Was the facility available when you visited?").set_value("yes")
+    widget(app.text_area, "Observation or issue").set_value("TEST ONLY: isolated temporary database")
+    widget(app.button, "Save local observation").click().run()
+    assert not app.exception
+    assert any("saved locally" in item.value for item in app.success)
+    conn = community.connect(db)
+    assert conn.execute("SELECT COUNT(*) FROM reports WHERE moderation_status='pending'").fetchone()[0] == 1
+    conn.close()
