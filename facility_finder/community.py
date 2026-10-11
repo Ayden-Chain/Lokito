@@ -69,3 +69,19 @@ def list_reports(facility_id, path=DB_PATH):
             "SELECT * FROM reports WHERE facility_id=? ORDER BY report_id DESC LIMIT 20", (facility_id,))]
     finally:
         conn.close()
+
+
+def preview_reports(facility_id, path=None):
+    """Read a public field allowlist without creating a database on page load."""
+    path = path or DB_PATH
+    if not path.exists():
+        return []
+    conn = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        return [dict(r) for r in conn.execute(
+            """SELECT submitted_at, available, cleanliness, moderation_status FROM reports
+               WHERE facility_id=? AND moderation_status IN ('pending','accepted')
+               ORDER BY report_id DESC LIMIT 3""", (facility_id,))]
+    finally:
+        conn.close()

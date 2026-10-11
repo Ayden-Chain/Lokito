@@ -176,6 +176,15 @@ def validate_cache(payload):
         d = context.get('distance_metres')
         if not isinstance(d,(int,float)) or not math.isfinite(d) or d < 0: raise ValueError('Invalid venue distance')
         if not context.get('relationship_evidence') or not context.get('enrichment_timestamp'): raise ValueError('Missing evidence')
+    catalog=payload.get('venues',{})
+    if not isinstance(catalog,dict): raise ValueError('Invalid venue catalog')
+    from facility_finder.media import valid_photo
+    for vid,venue in catalog.items():
+        if not ID.fullmatch(vid) or not isinstance(venue,dict) or venue.get('venue_id')!=vid: raise ValueError('Invalid catalog venue')
+        if venue.get('venue_category') not in LIMITS or not isinstance(venue.get('venue_name'),str) or not venue['venue_name'].strip(): raise ValueError('Invalid catalog venue label')
+        if not valid_coordinates(venue.get('latitude'),venue.get('longitude')): raise ValueError('Invalid catalog venue coordinates')
+        if venue.get('source_url')!=f'https://www.openstreetmap.org/{vid}' or not isinstance(venue.get('tags'),dict): raise ValueError('Invalid catalog provenance')
+        if venue.get('photo') is not None and not valid_photo(venue['photo']): raise ValueError('Invalid catalog photo')
     return payload
 
 
@@ -186,3 +195,20 @@ def load_cache(path=CACHE):
 
 def relationship_label(context):
     return f"{context['relationship_type'].capitalize()} {context['venue_name']}"
+
+
+def nearby_venues(catalog, origin, radius_km=5, search='', categories=('mall','fuel'), exclude_ids=()):
+    """Named OSM landmarks near a start; this list never asserts a toilet exists there."""
+    if not isinstance(catalog,dict): return []
+    term=str(search or '').strip().casefold()
+    excluded=set(exclude_ids)
+    places=[]
+    for place in catalog.values():
+        if place.get('venue_category') not in categories: continue
+        if place.get('venue_id') in excluded: continue
+        if term and term not in place.get('venue_name','').casefold(): continue
+        try: distance=haversine_km(*origin,place['latitude'],place['longitude'])
+        except (KeyError,TypeError,ValueError): continue
+        if radius_km is None or distance<=radius_km:
+            places.append(place|{'distance_km':distance})
+    return sorted(places,key=lambda p:(p['distance_km'],p['venue_name'].casefold(),p['venue_id']))

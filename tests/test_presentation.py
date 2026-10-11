@@ -87,3 +87,16 @@ def test_map_selection_uses_visible_tooltip_for_collocated_live_pin_events():
     assert marker_selection(event, rows) == 'way/8'
     event['last_object_clicked_tooltip'] = '99. Toilet'
     assert marker_selection(event, rows) is None
+
+
+def test_venue_pin_never_selects_a_mapped_toilet():
+    rows=pd.DataFrame([{'facility_id':'node/7','latitude':-6.2,'longitude':106.8,'result_number':1}])
+    event={'last_object_clicked':{'lat':-6.2,'lng':106.8},'last_object_clicked_tooltip':'place: Mall: Plaza Indonesia'}
+    assert marker_selection(event,rows) is None
+
+
+def test_venue_popup_without_tooltip_cannot_select_colocated_toilet():
+    rows=pd.DataFrame([{'facility_id':'node/7','latitude':-6.2,'longitude':106.8,'result_number':1}])
+    event={'last_object_clicked':{'lat':-6.2,'lng':106.8},
+           'last_object_clicked_popup':'<div data-venue-id="way/8">Mall</div>'}
+    assert marker_selection(event,rows) is None

@@ -2,20 +2,19 @@
 import hashlib
 import json
 import sqlite3
-from html import escape
-
 import pandas as pd
-import streamlit as st
 from streamlit_folium import st_folium
+import streamlit as st
 
 from facility_finder import community
 from facility_finder.data import PROCESSED, filter_facilities, load_facilities, rank_nearest
-from facility_finder.maps import build_map
-from facility_finder.presentation import (directions_url, facility_name, marker_selection, map_view_for_selection,
-                                         selected_facility, PLURALS)
+from facility_finder.google_map import map_url
+from facility_finder.maps import build_map, legend_html
+from facility_finder.community_ui import render_report_preview
+from facility_finder.presentation import directions_url, selected_facility, marker_selection, map_view_for_selection, PLURALS
 from facility_finder.ui import ROOT, brand, details_content, featured_content, html, nearby_content
-from facility_finder.enrichment import load_cache, CACHE
-from facility_finder.venue_ui import render_photo, render_details, context_for
+from facility_finder.enrichment import load_cache, CACHE, nearby_venues
+from facility_finder.venue_ui import render_photo, render_details, render_nearby_venue, context_for
 from facility_finder.media import valid_photo
 
 st.set_page_config(page_title='Lokito · Find a toilet nearby', page_icon=str(ROOT / 'assets/lokito-mark.svg'), layout='wide')
@@ -74,6 +73,13 @@ def change_category(category):
 def choose_facility(fid):
     st.session_state.selected_id = fid
     st.session_state.map_view = None
+    st.session_state.focus_venue_id = None
+
+
+def choose_venue(venue_id, latitude, longitude):
+    # Map focus is separate from the selected facility and its ranking.
+    st.session_state.focus_venue_id = venue_id
+    st.session_state.map_view = {'center': (latitude, longitude), 'zoom': 17}
 
 
 def apply_location():
@@ -123,7 +129,8 @@ def close_details():
 def show_details(row):
     details_content(row)
     st.link_button('Open directions ↗', directions_url(row, st.session_state.origin), type='primary', use_container_width=True)
-    st.caption('Opens Google Maps. Route and travel time are provided there.')
+    st.link_button('Buka di Google Maps ↗', map_url((row['latitude'], row['longitude'])))
+    report_preview = st.container()
     render_details(row)
     from facility_finder.google_places import configured, load_ids, policy_urls
     context = context_for(row)
@@ -149,16 +156,8 @@ def show_details(row):
             else:
                 save_observation(row['facility_id'], {'Not checked':'unknown', 'Yes':'yes', 'No':'no'}[available],
                                  None if cleanliness == 'Not assessed' else cleanliness, issue)
-    try:
-        reports = community.list_reports(row['facility_id'])
-        if reports:
-            with st.expander(f'Visitor observations ({len(reports)}) · unreviewed'):
-                for report in reports:
-                    html(f'<div class="report-note"><small>{escape(report["submitted_at"][:10])} · Awaiting review</small>'
-                         f'<p>{escape(report["issue"] or "No written note.")}</p>'
-                         f'<small>Availability reported: {escape(report["available"])} · Cleanliness: {report["cleanliness"] if report["cleanliness"] is not None else "Not assessed"}</small></div>')
-    except (OSError, sqlite3.Error) as exc:
-        st.error(f'Visitor observations could not be loaded: {exc}')
+    with report_preview:
+        render_report_preview(row['facility_id'])
 
 
 with st.container(key='header'):
@@ -174,49 +173,52 @@ if st.session_state.view == 'discover':
                'place_of_worship':'A place to pray, <span class="accent">nearby.</span>',
                'drinking_water':'Find drinking water <span class="accent">nearby.</span>'}[category]
     html(f'<div class="hero"><h1>{heading}</h1><p>A quick stop. A little less guesswork.</p></div>')
-    with st.container(key='toolbar'):
-        location_col, prefs_col, other_col = st.columns([2.5, 1.15, 1.2])
-        with location_col:
-            with st.popover(f'Starting near {st.session_state.location}', icon=':material/location_on:', key='location_menu', on_change='rerun', use_container_width=True):
-                st.write('**Where are you starting?**')
-                # Choice is outside the form so custom fields appear immediately.
-                choice = st.selectbox('Starting point', [*PRESETS, 'Custom point'],
-                                      index=[*PRESETS, 'Custom point'].index(st.session_state.location), key='location_choice')
-                with st.form('location_form'):
-                    if choice == 'Custom point':
-                        st.caption('Use an approximate location. Map tiles load from OpenStreetMap; directions open in Google Maps.')
-                        st.number_input('Latitude', min_value=-90.0, max_value=90.0, value=float(st.session_state.origin[0]), format='%.6f', key='custom_lat')
-                        st.number_input('Longitude', min_value=-180.0, max_value=180.0, value=float(st.session_state.origin[1]), format='%.6f', key='custom_lon')
-                    st.form_submit_button('Use this location', type='primary', on_click=apply_location, use_container_width=True)
-        with prefs_col:
-            active = sum(bool(st.session_state[k]) for k in ('wheelchair','free','public','search')) + (st.session_state.religion != 'Any')
-            with st.popover('Preferences' + (f' · {active}' if active else ''), icon=':material/tune:', key='preferences_menu', on_change='rerun', use_container_width=True):
-                st.write('**Make it work for you**')
-                with st.form('preferences_form'):
-                    st.checkbox('Wheelchair accessible', value=st.session_state.wheelchair, key='pref_wheelchair')
-                    st.checkbox('Free to use', value=st.session_state.free, key='pref_free')
-                    st.checkbox('Open to the public', value=st.session_state.public, key='pref_public')
-                    st.caption('Only places with this information listed are included. Details have not been checked by Lokito.')
-                    radii = ['1 km', '3 km', '5 km', '10 km', 'Any distance']
-                    st.selectbox('Look within', radii, index=radii.index(st.session_state.radius), key='pref_radius')
-                    st.text_input('Name or street', value=st.session_state.search, key='pref_search', placeholder='Facility, venue or street')
-                    if category == 'place_of_worship':
-                        religions = ['Any'] + sorted(facilities.loc[facilities.facility_category == category, 'religion'].unique())
-                        st.selectbox('Religion', religions, index=religions.index(st.session_state.religion), key='pref_religion')
-                    st.form_submit_button('Apply preferences', type='primary', on_click=apply_preferences, use_container_width=True)
-                st.button('Clear preferences', on_click=clear_preferences)
-        with other_col:
-            with st.popover('Other facilities' if category == 'toilets' else st.session_state.category, key='other_menu', on_change='rerun', use_container_width=True):
-                st.caption('Looking for something else?')
-                for label in CATEGORIES:
-                    st.button(label, key=f'category_{label}', on_click=change_category, args=(label,), use_container_width=True)
+    with st.container(key='results-layout'):
+        results_col, map_col = st.columns([1, 1.55], gap='large')
+    with results_col:
+        with st.container(key='toolbar'):
+            location_col, prefs_col, other_col = st.columns([2.5, 1.15, 1.2])
+            with location_col:
+                with st.popover(f'Starting near {st.session_state.location}', icon=':material/location_on:', key='location_menu', on_change='rerun', use_container_width=True):
+                    st.write('**Where are you starting?**')
+                    # Choice is outside the form so custom fields appear immediately.
+                    choice = st.selectbox('Starting point', [*PRESETS, 'Custom point'],
+                                          index=[*PRESETS, 'Custom point'].index(st.session_state.location), key='location_choice')
+                    with st.form('location_form'):
+                        if choice == 'Custom point':
+                            st.caption('Use an approximate location. Map tiles load from OpenStreetMap; directions open in Google Maps.')
+                            st.number_input('Latitude', min_value=-90.0, max_value=90.0, value=float(st.session_state.origin[0]), format='%.6f', key='custom_lat')
+                            st.number_input('Longitude', min_value=-180.0, max_value=180.0, value=float(st.session_state.origin[1]), format='%.6f', key='custom_lon')
+                        st.form_submit_button('Use this location', type='primary', on_click=apply_location, use_container_width=True)
+            with prefs_col:
+                active = sum(bool(st.session_state[k]) for k in ('wheelchair','free','public','search')) + (st.session_state.religion != 'Any')
+                with st.popover('Preferences' + (f' · {active}' if active else ''), icon=':material/tune:', key='preferences_menu', on_change='rerun', use_container_width=True):
+                    st.write('**Make it work for you**')
+                    with st.form('preferences_form'):
+                        st.checkbox('Wheelchair accessible', value=st.session_state.wheelchair, key='pref_wheelchair')
+                        st.checkbox('Free to use', value=st.session_state.free, key='pref_free')
+                        st.checkbox('Open to the public', value=st.session_state.public, key='pref_public')
+                        st.caption('Only places with this information listed are included. Details have not been checked by Lokito.')
+                        radii = ['1 km', '3 km', '5 km', '10 km', 'Any distance']
+                        st.selectbox('Look within', radii, index=radii.index(st.session_state.radius), key='pref_radius')
+                        st.text_input('Name or street', value=st.session_state.search, key='pref_search', placeholder='Facility, venue or street')
+                        if category == 'place_of_worship':
+                            religions = ['Any'] + sorted(facilities.loc[facilities.facility_category == category, 'religion'].unique())
+                            st.selectbox('Religion', religions, index=religions.index(st.session_state.religion), key='pref_religion')
+                        st.form_submit_button('Apply preferences', type='primary', on_click=apply_preferences, use_container_width=True)
+                    st.button('Clear preferences', on_click=clear_preferences)
+            with other_col:
+                with st.popover('Other facilities' if category == 'toilets' else st.session_state.category, key='other_menu', on_change='rerun', use_container_width=True):
+                    st.caption('Looking for something else?')
+                    for label in CATEGORIES:
+                        st.button(label, key=f'category_{label}', on_click=change_category, args=(label,), use_container_width=True)
     origin = st.session_state.origin
     if not (-6.5 < origin[0] < -5.0 and 106.3 < origin[1] < 107.1):
         st.warning('Your starting point is outside the Jakarta area. Lokito currently has facilities in Jakarta only.')
     query = (category, origin, *(st.session_state[k] for k in ('wheelchair','free','public','radius','search','religion')))
     signature = hashlib.sha256(repr(query).encode()).hexdigest()[:12]
     if st.session_state.get('query_signature') != signature:
-        st.session_state.update(query_signature=signature, selected_id=None, shown=5, map_view=None, detail_id=None)
+        st.session_state.update(query_signature=signature, selected_id=None, shown=5, venues_shown=5, map_view=None, focus_venue_id=None, detail_id=None)
     subset = filter_facilities(facilities, [category], st.session_state.wheelchair, st.session_state.free,
                                st.session_state.public, '',
                                None if st.session_state.religion == 'Any' or category != 'place_of_worship' else st.session_state.religion)
@@ -230,6 +232,13 @@ if st.session_state.view == 'discover':
     if st.session_state.radius != 'Any distance':
         ranked = ranked[ranked.distance_km <= float(st.session_state.radius.split()[0])].reset_index(drop=True)
     ranked['result_number'] = range(1, len(ranked) + 1)
+    venue_radius = None if st.session_state.radius == 'Any distance' else float(st.session_state.radius.split()[0])
+    toilet_ids = set(facilities.loc[facilities.facility_category == 'toilets', 'facility_id'])
+    toilet_venue_ids = {context['venue_id'] for facility_id, context in enrichment['records'].items()
+        if facility_id in toilet_ids and context.get('relationship_type') in ('inside', 'at')}
+    nearby_places = nearby_venues(enrichment.get('venues', {}), origin, radius_km=venue_radius,
+        search=st.session_state.search, categories=('mall', 'fuel'))
+    nearby_places = [place | {'toilet_linked': place['venue_id'] in toilet_venue_ids} for place in nearby_places]
     row = selected_facility(ranked, st.session_state.selected_id)
     st.session_state.selected_id = row['facility_id'] if row else None
     context = context_for(row) if row else None
@@ -239,64 +248,78 @@ if st.session_state.view == 'discover':
     radius_copy = 'Jakarta' if st.session_state.radius == 'Any distance' else f'within {st.session_state.radius}'
     result_label = ({'toilets': 'toilet', 'place_of_worship': 'prayer space', 'drinking_water': 'drinking water point'}[category]
                     if len(ranked) == 1 else PLURALS[category])
-    html(f'<div class="results-heading"><h2>{len(ranked):,} {result_label} {radius_copy}</h2><span>Nearest first · straight-line distances</span></div>')
-    with st.container(key='results-layout'):
-        results_col, map_col = st.columns([0.95, 1.55], gap='large')
-        with results_col:
-            with st.container(key='results-pane'):
-                if row:
-                    with st.container(key='featured'):
-                        featured_content(row, row['result_number'] == 1)
-                        with st.container(key='feature-actions'):
-                            directions, details = st.columns([1.25, 1])
-                            directions.link_button('Open directions ↗', directions_url(row, origin), type='primary', use_container_width=True)
-                            if details.button('View details', use_container_width=True):
-                                st.session_state.detail_id = row['facility_id']
-                        html('<p class="directions-note">Opens Google Maps</p><div class="trust-note">Not yet checked by Lokito</div>')
-                        render_photo(row)
-                    if row['result_number'] != 1:
-                        st.button('Back to nearest option', on_click=choose_facility, args=(ranked.iloc[0].facility_id,))
-                    others = ranked[ranked.facility_id != row['facility_id']]
-                    if not others.empty:
-                        html(f'<div class="other-heading">Other {PLURALS[category]} nearby</div>')
-                    for other in others.head(st.session_state.shown).to_dict('records'):
-                        with st.container(key=f'nearby-card-{other["result_number"]}'):
-                            nearby_content(other)
-                            st.button(f'Show option {other["result_number"]} on map →', key=f'choose_{other["facility_id"]}',
-                                      on_click=choose_facility, args=(other['facility_id'],))
-                    if len(others) > st.session_state.shown:
-                        if st.button('Show more nearby', use_container_width=True):
-                            st.session_state.shown += 5
-                            st.rerun()
-                    elif others.empty:
-                        st.caption('This is the only mapped match in this area.')
-                else:
-                    html('<div class="empty-state"><h2>No matches just yet.</h2><p>Try a wider area or fewer preferences. There may be facilities we haven’t mapped yet.</p></div>')
-                    st.button('Clear preferences', key='empty_clear', on_click=clear_preferences, use_container_width=True)
-                    st.button('Search all Jakarta', on_click=widen_search, use_container_width=True)
-        with map_col:
-            with st.container(key='map-pane'):
-                visible = ranked.head(60)
-                if row and row['facility_id'] not in set(visible.facility_id):
-                    visible = pd.concat([visible.head(59), ranked[ranked.facility_id == row['facility_id']]])
-                map_key = f'map_{signature}_{st.session_state.selected_id}'
-                viewport = st.session_state.map_view or map_view_for_selection(origin, row)
-                event = st_folium(build_map(visible, origin, st.session_state.selected_id), height=610,
-                                  use_container_width=True, key=map_key,
-                                  center=viewport.get('center'), zoom=viewport.get('zoom'),
-                                  returned_objects=['last_object_clicked', 'last_object_clicked_popup',
-                                                    'last_object_clicked_tooltip', 'center', 'zoom'])
-                clicked = marker_selection(event, visible)
-                if clicked and clicked != st.session_state.selected_id:
-                    st.session_state.selected_id = clicked
-                    if event.get('center') and event.get('zoom'):
-                        st.session_state.map_view = {'center': (event['center']['lat'], event['center']['lng']), 'zoom': event['zoom']}
+    with results_col:
+        with st.container(key='results-pane'):
+            html(f'<div class="results-heading"><h2>{len(ranked):,} {result_label} {radius_copy}</h2><span>Nearest first · straight-line distances</span></div>')
+            if row:
+                with st.container(key='featured'):
+                    featured_content(row, row['result_number'] == 1)
+                    with st.container(key='feature-actions'):
+                        directions, details = st.columns([1.25, 1])
+                        directions.link_button('Open directions ↗', directions_url(row, origin), type='primary', use_container_width=True)
+                        if details.button('View details', use_container_width=True):
+                            st.session_state.detail_id = row['facility_id']
+                    html('<div class="trust-note">Not yet checked by Lokito</div>')
+                    render_report_preview(row['facility_id'])
+                    render_photo(row)
+                if row['result_number'] != 1:
+                    st.button('Back to nearest option', on_click=choose_facility, args=(ranked.iloc[0].facility_id,))
+                others = ranked[ranked.facility_id != row['facility_id']]
+                if not others.empty:
+                    html(f'<div class="other-heading">Other {PLURALS[category]} nearby</div>')
+                for other in others.head(st.session_state.shown).to_dict('records'):
+                    with st.container(key=f'nearby-card-{other["result_number"]}'):
+                        nearby_content(other)
+                        st.button(f'Show option {other["result_number"]} on map →', key=f'choose_{other["facility_id"]}',
+                                  on_click=choose_facility, args=(other['facility_id'],))
+                        st.link_button('Buka di Google Maps ↗', map_url((other['latitude'], other['longitude'])))
+                if len(others) > st.session_state.shown:
+                    if st.button('Show more nearby', use_container_width=True):
+                        st.session_state.shown += 5
+                        st.rerun()
+                elif others.empty:
+                    st.caption('This is the only mapped match in this area.')
+            else:
+                html('<div class="empty-state"><h2>No matches just yet.</h2><p>Try a wider area or fewer preferences. There may be facilities we haven’t mapped yet.</p></div>')
+                st.button('Clear preferences', key='empty_clear', on_click=clear_preferences, use_container_width=True)
+                st.button('Search all Jakarta', on_click=widen_search, use_container_width=True)
+            if nearby_places:
+                html('<div class="other-heading">Malls &amp; SPBU nearby</div>')
+                st.caption('Venue landmarks, separate from mapped toilets. Distances are straight-line from your starting point.')
+                venue_count = st.session_state.setdefault('venues_shown', 5)
+                for place in nearby_places[:venue_count]:
+                    render_nearby_venue(place, origin)
+                    st.button('Show venue on map →', key=f'venue_{place["venue_id"]}',
+                              on_click=choose_venue, args=(place['venue_id'], place['latitude'], place['longitude']))
+                if len(nearby_places) > venue_count and st.button('Show more malls & SPBU', use_container_width=True):
+                    st.session_state.venues_shown += 5
                     st.rerun()
-                html('<div class="map-caption"><span class="map-start">Your starting point</span><span>Tap a numbered pin to choose a place</span></div>')
-                if len(ranked) > 60:
-                    st.caption('Map shows the closest 60 options, including your selection. Browse more in the list.')
-                if category == 'place_of_worship':
-                    st.caption('Includes different religions. Public prayer rooms and entry are not guaranteed.')
+    with map_col:
+        with st.container(key='map-pane'):
+            visible = ranked.head(60)
+            if row and row['facility_id'] not in set(visible.facility_id):
+                visible = pd.concat([visible.head(59), ranked[ranked.facility_id == row['facility_id']]])
+            focus_venue = st.session_state.get('focus_venue_id')
+            viewport = st.session_state.map_view or map_view_for_selection(origin, row)
+            event = st_folium(build_map(visible, origin, st.session_state.selected_id, nearby_places,
+                                       selected_venue_id=focus_venue), height=610,
+                use_container_width=True, key=f'map_{signature}_{st.session_state.selected_id}_{focus_venue}',
+                center=viewport['center'], zoom=viewport['zoom'],
+                returned_objects=['last_object_clicked', 'last_object_clicked_popup',
+                                  'last_object_clicked_tooltip', 'center', 'zoom'])
+            clicked = marker_selection(event, visible)
+            if clicked and clicked != st.session_state.selected_id:
+                st.session_state.selected_id = clicked
+                st.session_state.focus_venue_id = None
+                if event.get('center') and event.get('zoom'):
+                    st.session_state.map_view = {'center': (event['center']['lat'], event['center']['lng']), 'zoom': event['zoom']}
+                st.rerun()
+            html(legend_html(category))
+            st.caption('Pins show mapped locations, not confirmed entrances or current availability. Select a pin to explore.')
+            if len(ranked) > 60:
+                st.caption('Map shows the closest 60 facilities, including your selection. All matching mall/SPBU landmarks are included.')
+            if category == 'place_of_worship':
+                st.caption('Includes different religions. Public prayer rooms and entry are not guaranteed.')
 
 elif st.session_state.view == 'trust':
     from facility_finder.evidence import render_trust

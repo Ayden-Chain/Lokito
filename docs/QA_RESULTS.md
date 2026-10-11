@@ -1,5 +1,11 @@
 # QA results — 14 September 2026
 
+## October 11 map and scroll follow-up
+
+- Current suite: **83 passed**. The interactive OSM map is restored; desktop results scroll independently, venue landmarks stay separate from mapped toilets, and structured reports are visible immediately.
+- Current preview: **http://127.0.0.1:8502/**, restarted with current modules. See [current QA](OSM_MAP_QA.md) for browser evidence, photo coverage and map and device limits.
+- The remaining sections below preserve the **historical 14 September** baseline, including its older test count and Folium checks.
+
 ## Tested environment
 
 macOS ARM64, Python 3.12.4, Streamlit 1.63.0, Pandas 2.3.3, Folium 0.20.0, streamlit-folium 0.27.4. Full versions are recorded in `requirements-lock.txt`.

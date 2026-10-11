@@ -5,7 +5,8 @@ import streamlit as st
 
 from facility_finder.enrichment import LABELS, relationship_label
 from facility_finder.media import valid_photo
-from facility_finder.presentation import facility_name, known
+from facility_finder.google_map import map_url
+from facility_finder.presentation import facility_name, known, distance_label, directions_url
 
 
 def context_for(row):
@@ -67,5 +68,34 @@ def render_details(row):
         st.caption('The mapped point is within the venue boundary. The entrance, floor and public access still need checking.')
     else:
         st.caption('The facility source explicitly names this venue. Entry and current availability still need checking.')
-    st.link_button('Venue source ↗',context['source_url'])
+    st.caption('Sumber data: OpenStreetMap')
     render_photo(row)
+
+
+def render_nearby_venue(place, origin):
+    """A venue landmark card, clearly separate from mapped-toilet results."""
+    st.markdown(nearby_venue_html(place, origin), unsafe_allow_html=True)
+
+
+def nearby_venue_html(place, origin):
+    """Build a venue card without making a toilet availability claim."""
+    category=LABELS[place['venue_category']]
+    context={'photo':place.get('photo')}
+    photo=photo_html(context.get('photo'))
+    target={'latitude':place['latitude'],'longitude':place['longitude']}
+    direction=directions_url(target,origin)
+    return (
+        '<article class="nearby-venue">'
+        f'<div class="nearby-venue-title">{escape(place["venue_name"])}</div>'
+        f'<div class="nearby-venue-meta">{escape(category)} · {distance_label(place["distance_km"])} away</div>'
+        f'<p>{venue_notice(place)}</p>'
+        f'<a class="nearby-venue-map" href="{escape(map_url((place["latitude"],place["longitude"])),quote=True)}" target="_blank" rel="noopener noreferrer">Buka di Google Maps ↗</a>'
+        f'<a class="nearby-venue-directions" href="{escape(direction,quote=True)}" target="_blank" rel="noopener noreferrer">Directions to venue ↗</a>'
+        '<p class="nearby-venue-source">Sumber data: OpenStreetMap</p>'
+        f'{photo}</article>')
+
+
+def venue_notice(place):
+    if place.get('toilet_linked'):
+        return 'A mapped toilet is associated with this venue in Lokito. Access and current availability still need checking.'
+    return 'No toilet location is explicitly linked inside this venue in Lokito. This does not mean the venue has no toilets.'

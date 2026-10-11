@@ -1,15 +1,15 @@
 # Project status — Lokito
 
-As of **6 October 2026**. The venue-context, photo and product-feedback iteration is implemented on the existing consumer redesign. No production deployment has been performed. The earlier redesign record remains below; current evidence and setup are in [the enrichment handover](docs/ENRICHMENT_HANDOVER.md) and [QA record](docs/ENRICHMENT_QA.md).
+As of **11 October 2026**. The venue-context, photo and product-feedback iteration is implemented on the existing consumer redesign. No production deployment has been performed. The earlier redesign record remains below; current evidence and setup are in [the enrichment handover](docs/ENRICHMENT_HANDOVER.md) and [QA record](docs/OSM_MAP_QA.md).
 
 ## October additions
 
 - 5,120 named OSM venues from a separate geometry snapshot; 1,170 original facilities receive context: 0 explicit associations, 40 contained nodes, 1,130 proximity matches.
-- Among 141 toilets: 65 receive context (16 inside, 49 near); 21 have licensed venue photos. All categories combined: 36 facilities have photos representing 23 distinct Commons files.
+- Among 141 toilets: 65 receive context (16 inside, 49 near); 24 have licensed venue photos. All categories combined: 41 facility associations have photos. The independent catalog contains 28 photographed venues, including Plaza Indonesia and Grand Indonesia.
 - Wikimedia photographs carry creator, licence and source links. Optional Google Places uses explicit API calls, ID-only disk caching and a separate photo page; no key was configured for live Google QA.
-- Product feedback has its own SQLite database and owner-gated summary. Test feedback remains in temporary databases; the real product-feedback database has not been created. One existing community observation dated 22 September was preserved.
-- 68 automated tests pass, including the original 30. Raw and processed facility checksums still match the pre-change baseline.
-- Mouse-wheel zoom and browser layouts at 1440, 1280, 768, 430 and 390 pixels checked. Physical touchscreen pinch and a real trackpad remain device checks.
+- Product feedback has its own SQLite database and owner-gated summary. Facility report previews show only structured fields with moderation status, directly on the featured card/details. Private notes and identities stay private. Existing local observations were preserved; test submissions use temporary databases.
+- **83 automated tests pass.** Raw and processed facility checksums still match the pre-change baseline.
+- Interactive OSM overview restored, with blue mall/SPBU markers separate from brown unverified toilets and a distinct starting point. At Bundaran HI: 43 toilets and 116 venue landmarks within 5 km. Desktop list scrolls independently with persistent controls; mobile uses normal page scrolling. Google Maps remains an outbound coordinate/directions action. Current preview: [Lokito](http://127.0.0.1:8501/); port 8502 is also restored. See [current QA](docs/OSM_MAP_QA.md). Physical pinch and hardware trackpad checks remain outstanding.
 
 ## September baseline (historical)
 

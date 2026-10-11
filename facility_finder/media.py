@@ -6,8 +6,14 @@ from html.parser import HTMLParser
 from urllib.parse import urlsplit, quote
 
 import requests
+from facility_finder.enrichment import normalized_name
+from facility_finder.data import haversine_km, valid_coordinates
 
 HEADERS = {'User-Agent': 'LokitoAcademicPrototype/0.2 (Jakarta facility research)'}
+
+
+class MediaRateLimited(ValueError):
+    """Stop this acquisition batch after the provider's retry budget is spent."""
 
 
 class PlainText(HTMLParser):
@@ -84,6 +90,8 @@ class Wikimedia:
             if retry.isdigit() and int(retry)<=30:
                 time.sleep(max(8,int(retry)))
                 response = self.session.get(url, headers=HEADERS, timeout=(10,25), allow_redirects=False, **kwargs)
+        if response.status_code in (429,503):
+            raise MediaRateLimited(f'Media source asked for backoff (HTTP {response.status_code})')
         if response.status_code != 200: raise ValueError(f'Media source unavailable (HTTP {response.status_code})')
         payload = response.json()
         if not isinstance(payload,dict) or payload.get('error'): raise ValueError('Invalid media response')
@@ -95,12 +103,36 @@ class Wikimedia:
         qid = tags.get('wikidata','')
         if not re.fullmatch(r'Q[1-9][0-9]*',qid):
             wiki = tags.get('wikipedia','')
-            if ':' not in wiki: return None
-            language, title = wiki.split(':',1)
-            if not re.fullmatch(r'[a-z-]{2,12}', language): return None
-            payload = self.get('https://www.wikidata.org/w/api.php', params={
-                'action':'wbgetentities','sites':language.replace('-','_')+'wiki','titles':title,'props':'claims','format':'json'})
-            entities = payload.get('entities',{})
+            if ':' in wiki:
+                language, title = wiki.split(':',1)
+                if not re.fullmatch(r'[a-z-]{2,12}', language): return None
+                payload = self.get('https://www.wikidata.org/w/api.php', params={
+                    'action':'wbgetentities','sites':language.replace('-','_')+'wiki','titles':title,'props':'claims','format':'json'})
+                entities = payload.get('entities',{})
+            else:
+                payload=self.get('https://www.wikidata.org/w/api.php',params={
+                    'action':'wbsearchentities','search':tags.get('_venue_name',''),
+                    'language':'en','format':'json','limit':5})
+                candidates=[x for x in payload.get('search',[]) if isinstance(x,dict)
+                            and normalized_name(x.get('label',''))==normalized_name(tags.get('_venue_name',''))
+                            and isinstance(x.get('id'),str) and re.fullmatch(r'Q[1-9][0-9]*',x['id'])]
+                if len(candidates)!=1: return None
+                qid=candidates[0]['id']
+                if qid not in self.entities:
+                    self.entities[qid]=self.get(f'https://www.wikidata.org/wiki/Special:EntityData/{qid}.json')
+                entities=self.entities[qid].get('entities',{})
+                # A matching label alone may identify a namesake elsewhere.
+                lat,lon=tags.get('_venue_latitude'),tags.get('_venue_longitude')
+                if not valid_coordinates(lat,lon): return None
+                coordinates=entities.get(qid,{}).get('claims',{}).get('P625',[])
+                nearby=False
+                for claim in coordinates:
+                    value=claim.get('mainsnak',{}).get('datavalue',{}).get('value',{})
+                    if (claim.get('rank')!='deprecated' and isinstance(value,dict)
+                            and valid_coordinates(value.get('latitude'),value.get('longitude'))
+                            and haversine_km(lat,lon,value['latitude'],value['longitude'])<=1):
+                        nearby=True
+                if not nearby: return None
         else:
             if qid not in self.entities:
                 self.entities[qid] = self.get(f'https://www.wikidata.org/wiki/Special:EntityData/{qid}.json')
@@ -113,9 +145,18 @@ class Wikimedia:
         return None
 
     def photo(self, venue):
-        filename = self.filename(venue['tags'])
-        if not filename: return None
-        payload = self.get('https://commons.wikimedia.org/w/api.php', params={
-            'action':'query','format':'json','titles':filename,'prop':'imageinfo',
-            'iiprop':'url|extmetadata','iiurlwidth':640})
+        tags=venue['tags'] | {'_venue_name':venue['venue_name'],
+            '_venue_latitude':venue.get('latitude'),'_venue_longitude':venue.get('longitude')}
+        commons=tags.get('wikimedia_commons','')
+        if commons.startswith(('Category:','Commons:Category:')):
+            category=commons.removeprefix('Commons:')
+            payload=self.get('https://commons.wikimedia.org/w/api.php',params={
+                'action':'query','format':'json','generator':'categorymembers','gcmtitle':category,
+                'gcmtype':'file','gcmlimit':20,'prop':'imageinfo','iiprop':'url|extmetadata','iiurlwidth':640})
+        else:
+            filename = self.filename(tags)
+            if not filename: return None
+            payload = self.get('https://commons.wikimedia.org/w/api.php', params={
+                'action':'query','format':'json','titles':filename,'prop':'imageinfo',
+                'iiprop':'url|extmetadata','iiurlwidth':640})
         return parse_imageinfo(payload,venue['venue_name'])

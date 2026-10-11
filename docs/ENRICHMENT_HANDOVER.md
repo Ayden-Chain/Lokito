@@ -1,12 +1,14 @@
 # Lokito venue, media and feedback handover
 
-Implemented 6 October 2026, using Python, Streamlit, Pandas, Folium and SQLite. This extends the current application. The original 5,824 facility records were not refreshed or rewritten.
+Updated 11 October 2026, using Python, Streamlit, Pandas, SQLite, Folium/OpenStreetMap and Google Maps coordinate/directions links. The original 5,824 facility records were not refreshed or rewritten. Discovery again uses the interactive Folium renderer; the optional Google Embed helper is retained but unused by discovery.
 
 ## User journey
 
-Find a toilet → read its venue context → inspect known details and optional venue photograph → open directions. Search now also matches venue names. An unnamed toilet can receive a display label such as “Toilet inside Pondok Indah Mall 1”; “Location label by Lokito” distinguishes it from an official source name. Named facilities retain their source title. Map tooltips and popups use the same contextual title as cards.
+Find a toilet → read its venue context and visible report preview → inspect details or a venue photo → open Google Maps. Search also matches venue names. An unnamed toilet can receive a display label such as “Toilet inside Pondok Indah Mall 1”; “Location label by Lokito” distinguishes it from an official source name. Named facilities retain their source title. The OSM overview distinguishes mapped facilities, the starting point and blue mall/SPBU venue landmarks. Venue focus leaves the selected toilet, count and ranking unchanged; Google Maps actions use exact coordinates.
 
-Directions remain the primary action and appear before images. Nearby cards do not load photos. At most one featured photo and its detail-dialog equivalent render. Images use a consistent 16:7 crop with a “cropped to fit” notice. On phones the map remains 220 px high; on tablets it is 300 px. Missing media produces no invented photograph; a failed image URL leaves a neutral frame and a source link.
+Directions remain above images. Facility photos appear on the featured card and details; independent venue cards and a selected venue also show their available photos. Images use a 16:7 crop with a “cropped to fit” notice. The OSM map is 300 px high on mobile. On desktop the left result panel scrolls independently while search/preferences and the right map remain visible. On mobile, controls, map and results use normal page scrolling. Missing media produces no invented photo; a failed image URL leaves a neutral frame and source link. The redundant “Opens Google Maps” note has been removed.
+
+The latest three non-rejected facility observations are visible on the featured card and in details. Only date, reported availability, cleanliness and moderation status are selected from SQLite. Written notes, contributor identifiers and reviewer identities are not public. Pending observations are labelled “Awaiting review”; accepted reports say “Reviewed report”, never facility verification. Product feedback remains separate and owner-gated.
 
 “Help improve Lokito” opens a dedicated app-feedback form. Facility observations remain in facility details. Data & trust exposes source evidence and private owner feedback results.
 
@@ -20,10 +22,14 @@ The authoritative bundle is `data/enrichment/places.json`; metadata live in that
 | Geometry containment (`inside`) | 40 | 16 |
 | Proximity (`near`) | 1,130 | 49 |
 | Any venue context | 1,170 | 65 |
-| Wikimedia photo available | 36 | 21 |
+| Wikimedia photo available | 41 | 24 |
 | Google photos fetched | 0 | 0 |
 
-There are 23 distinct Commons files across the photo-bearing facilities. Current photo licences: CC BY-SA 4.0 (26 facility associations), CC BY-SA 3.0 (7), CC BY 4.0 (2), CC BY 3.0 (1). These counts are associations, not distinct photos or photographed toilets.
+There are 27 distinct Commons files across photo-bearing facility associations and 28 distinct photographed venues in the independent catalog. Current facility-photo licences: CC BY-SA 4.0 (29 associations), CC BY-SA 3.0 (8), CC BY 4.0 (2), CC BY 3.0 (1), CC BY-SA 2.0 (1). These are venue photos, not confirmed photographs of toilets.
+
+Facility-linked photo counts above describe the toilet/context associations only. The atomic bundle also includes a separate catalog of all **5,120 named OSM venues**, so a mall or SPBU can appear even when no toilet has been linked to it. Around Bundaran HI, Plaza Indonesia and Grand Indonesia are shown as venue cards with venue directions, plain-text OSM source labels and attributed Wikimedia photos. Their cards explicitly distinguish a venue from a toilet listing; the current seed has no toilet location explicitly linked inside either one. This does not establish that those malls lack toilets. All matching mall/SPBU landmarks within the radius appear on the map, including venues with an `inside` or `at` association. The notice for those venues describes a mapped toilet association without promising access or availability. Bundaran HI has 116 matching venue landmarks within 5 km, separate from its 43 toilet results.
+
+The venue catalog reports its own `wikimedia_photos` and `unique_photos` counts in the bundle metadata. These are separate from the facility-associated photo counts in the table above. Photos are retrieved from Wikimedia Commons with author, licence and source links; they depict the venue, not necessarily its toilet. Missing photos remain absent. Optional Google Places photos are not part of the current cache.
 
 The complete venue snapshot contains 5,120 named venues after conservative duplicate handling. Association counts by category: transit 110, parks 86, public buildings 596, markets 72, SPBU 46, universities 148, malls 70, hospitals 38, attractions 4. A venue appearing in this inventory does not establish that it has a toilet; only an existing mapped facility can receive an association.
 
@@ -57,15 +63,15 @@ The schema stores facility and venue IDs, venue name/category/coordinates, relat
 
 The matcher is pure and independent of remote calls. The browser app loads local JSON through a modification-time cache. Normal reruns do not query Overpass, Wikidata, Commons APIs or Places APIs. Loading thumbnail images and map tiles still creates ordinary browser requests to their providers.
 
-Refresh rejects API errors, timeout remarks, missing category coverage, unusable coordinates, empty matches, invalid schema and an association-count decrease greater than 30%. Atomic replacement occurs only after validation. A failed refresh returns the previous valid bundle and logs `cache_fallback`. Any media lookup exception during a refresh with an existing cache preserves the entire old bundle. A first acquisition can save valid context with partial photos, explicitly marked `context_complete_media_partial`.
+Venue refresh rejects API errors, timeout remarks, missing category coverage, unusable coordinates, empty matches, invalid schema and an association-count decrease greater than 30%. Atomic replacement occurs after validation. Invalid venue acquisition preserves the previous bundle. Individual media failures do not discard other successes: previously valid images and newly validated images are retained in an atomic bundle marked `context_complete_media_partial`.
 
-Media requests are bounded (default 60 venue lookups, toilet venues first). Previously valid photos outside that batch are retained. A successful lookup returning no permitted image removes that photo. Deferred lookups are reported. Wikimedia rate limiting caused eight failures in the initial 35-venue batch; the completed geometry pass retained already validated photos with `--photo-limit 0`. Final matching changed some venue choices, leaving 36 photo-bearing facilities. More media coverage is possible through a later successful refresh. Old thumbnail timestamps remain truthful; they are not silently advanced.
+Media requests are bounded (default 60 missing-photo venues). Valid cached photos are skipped; no-result lookups cannot remove them. Targets prioritize the two Bundaran HI malls, associated toilet venues, then malls and remaining referenced venues by proximity to Bundaran HI. Persistent HTTP 429/503 stops the batch after the bounded retry rather than repeatedly calling the provider. Metadata records attempts, failures, deferred work and rate limiting. The latest 12-lookup budget stopped after 11 attempts on provider backoff, retaining three newly found images: 28 venue photos, 41 facility-photo associations, 24 toilets. Original photo retrieval timestamps are preserved.
 
 Missing, empty or malformed enrichment files yield an ordinary facility-only app. The facility dataset itself must still be valid. A normal command uses a valid cache without remote calls; with no valid cache it performs initial acquisition. A snapshot replay can recompute context, but media may change unless disabled or retained from the existing bundle.
 
 ## Wikimedia media
 
-Source selection uses the chosen venue's explicit `wikimedia_commons`/`image` File reference, Wikidata QID P18 claim, or Wikipedia-to-Wikidata resolution. There is no image search or arbitrary website scraping. Images are treated as venue images; their relationship to the actual toilet is not claimed.
+Source selection uses explicit Commons File/Category references, Wikidata P18, or Wikipedia-to-Wikidata resolution. For malls lacking those tags, a Wikidata search must return one exact normalized label plus coordinates within 1 km before using P18. Category members still undergo the same licence validation. Plaza Indonesia's exact Commons file was source-reviewed and added to the preserved venue-photo cache. No Google photo scraping or arbitrary image scraping is used. Venue imagery does not establish a toilet's appearance or location.
 
 Commons imageinfo returns a thumbnail and machine-readable creator/licence metadata. The cache records source identifier, filename, thumbnail URL, file-page URL, creator, credit, licence name and URL, description, retrieval timestamp, alt text and subject. HTML metadata is stripped and escaped before rendering.
 
@@ -140,7 +146,7 @@ New modules: `enrichment.py`, `enrich_places.py`, `media.py`, `venue_ui.py`, `go
 
 The original source backup and original-data checksum manifest are in `docs/enrichment-baseline`. Original raw/processed checksums match. The working project is now a Git repository created and pushed by the user; this resumed pass leaves reviewable local changes without automatically publishing them.
 
-All 68 tests pass, including the original 30. Matching, thresholds, ambiguity, geometry, cache preservation, URL/licence handling, mocked Google responses, isolated feedback persistence and consumer fallback journeys are covered. Browser outcomes, screenshots and device limitations are recorded in [ENRICHMENT_QA.md](ENRICHMENT_QA.md).
+All 83 tests pass, including the original tests. Matching, geometry, partial media recovery, rate limiting, Google coordinate links, browser/server key separation, private report-field exclusion and consumer fallback journeys are covered. Current browser evidence and limitations are in [OSM_MAP_QA.md](OSM_MAP_QA.md); the earlier Folium checks are historical in [ENRICHMENT_QA.md](ENRICHMENT_QA.md).
 
 ## Official references and adopted principles
 

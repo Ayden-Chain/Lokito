@@ -52,6 +52,9 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{o
 .small-card p{font-size:12px;color:var(--muted);margin:0}.small-card-info{flex:1;min-width:0}
 [class*="st-key-nearby-card-"] [data-testid="stButton"] button{font-size:12px;min-height:44px;border:0;background:transparent;padding:0;color:var(--accent);text-align:left}
 .st-key-map-pane{position:sticky;top:20px}
+.google-map-heading{margin:10px 0}.google-map-heading>span{font-size:11px;color:var(--muted)}.google-map-heading h3{margin:5px 0!important}
+.map-handoff{padding:24px;background:var(--card);border:1px solid var(--line);border-radius:16px;margin:10px 0}.map-handoff>span{font-size:32px;color:var(--accent)}.map-handoff p{font-weight:600;margin:8px 0}.map-handoff small{color:var(--muted);line-height:1.5}
+.nearby-venue-map,.nearby-venue-directions{min-height:44px;padding:10px 0}
 .st-key-map-pane iframe{border-radius:18px;border:1px solid var(--line)!important;display:block}
 .map-caption{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);padding:10px 4px}
 .map-start{display:inline-flex;align-items:center;gap:5px}.map-start:before{content:'';width:7px;height:7px;border:2px solid var(--ink);border-radius:50%}
@@ -71,6 +74,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{o
 .venue-photo{margin:12px 0 0}.venue-photo-frame{aspect-ratio:16/7;border-radius:12px;background-color:#E6DED2;background-size:cover;background-position:center}
 .venue-photo figcaption{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px;overflow-wrap:anywhere}
 .venue-photo figcaption a{color:#82422D!important}.venue-photo figcaption small{font-size:10px}
+.nearby-venue{border-top:1px solid var(--line);padding:15px 0}.nearby-venue-title{font-weight:650;font-size:16px;overflow-wrap:anywhere}.nearby-venue-meta{color:var(--muted);font-size:12px;margin-top:3px}.nearby-venue p{color:var(--muted);font-size:12px;line-height:1.5;margin:8px 0}.nearby-venue a{display:inline-block;color:#82422D!important;font-size:12px;margin:2px 12px 4px 0}.nearby-venue .venue-photo-frame{max-width:430px}
 .st-key-feedback-content{max-width:720px;margin:20px auto}
 .st-key-feedback-footer{padding-top:20px}
 .google-attribution{font:400 14px/1.5 sans-serif;color:#5E5E5E;white-space:nowrap;letter-spacing:normal}
@@ -98,9 +102,46 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{o
  .st-key-toolbar [data-testid="stColumn"]:first-child{flex-basis:100%!important;width:100%!important}
  .st-key-toolbar [data-testid="stPopover"]>button{font-size:13px}
  .results-heading{padding-top:12px}.results-heading h2{font-size:14px!important}.results-heading span{font-size:11px}
- .st-key-map-pane iframe,.st-key-map-pane [data-testid="stCustomComponentV1"]{height:220px!important}
+ .st-key-map-pane iframe,.st-key-map-pane [data-testid="stCustomComponentV1"]{height:300px!important}
  .map-caption{font-size:10px;padding:8px 1px}.st-key-featured{padding:20px!important;border-radius:15px}
  .feature-label{margin-bottom:12px}.facility-title{font-size:25px!important}
  .detail-list{gap:16px}.footer{margin-top:22px}.st-key-feature-actions button,.st-key-feature-actions a{font-size:13px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* Desktop discovery: controls stay outside the independently scrolling results. */
+.st-key-toolbar [data-testid="stHorizontalBlock"]{flex-wrap:wrap!important}
+.st-key-toolbar [data-testid="stColumn"]:first-child{flex:1 1 100%!important;width:100%!important}
+.st-key-toolbar [data-testid="stColumn"]:not(:first-child){flex:1 1 40%!important;width:auto!important}
+.results-heading{align-items:flex-start;flex-direction:column;gap:3px;padding-top:2px}
+.results-heading span{white-space:normal}
+.map-legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:11px;line-height:1.4;color:var(--muted);padding:8px 0}
+.map-legend>span{display:inline-flex;align-items:center;gap:6px}
+.map-legend i{font-style:normal;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.legend-toilet,.legend-other{width:21px;height:21px;border:2px dashed #A6422A;color:#8C3723;border-radius:6px;background:#FFFDFA}
+.legend-other{border-color:#79549A;color:#674387;background:#F2EAF8}
+.legend-venue{border-radius:50%;background:#2868AD;color:white;width:26px;height:26px;font-size:9px}
+.legend-origin{width:13px;height:13px;border:3px solid white;border-radius:50%;background:#292622;box-shadow:0 0 0 1px #292622}
+@media(min-width:851px){
+ .st-key-results-layout{--explorer-height:max(480px, calc(100dvh - 245px));position:sticky;top:16px}
+ .st-key-results-pane{height:calc(var(--explorer-height) - 125px);overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding:3px 12px 16px 3px;overscroll-behavior:contain}
+ .st-key-map-pane{position:static}
+ .st-key-map-pane iframe,.st-key-map-pane [data-testid="stCustomComponentV1"]{height:calc(var(--explorer-height) - 100px)!important}
+ .st-key-toolbar{padding:0 0 10px}
+}
+@media(max-width:850px){
+ .st-key-results-layout{position:static}
+ .st-key-results-pane{height:auto;max-height:none;overflow:visible;padding:0}
+}
+@media(min-width:851px){
+ .st-key-results-pane{min-height:0!important;max-height:calc(var(--explorer-height) - 125px)!important;height:calc(var(--explorer-height) - 125px)!important}
+}
+@media(max-width:850px){
+ .st-key-results-layout>div>[data-testid="stHorizontalBlock"]{flex-direction:column!important}
+ .st-key-results-layout>div>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"],
+ .st-key-results-layout>div>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]>[data-testid="stVerticalBlock"],
+ .st-key-results-layout>div>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]>[data-testid="stVerticalBlock"]>[data-testid="stLayoutWrapper"]{display:contents!important}
+ .st-key-toolbar{order:0;width:100%}
+ .st-key-map-pane{order:1;width:100%}
+ .st-key-results-pane{order:2;width:100%}
+}

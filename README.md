@@ -1,6 +1,6 @@
 # Lokito — find what you need, nearby
 
-A working, local **Jakarta public-facility discovery MVP** for an academic Venture Creation project. Built with Python, Streamlit, Pandas, Folium and SQLite.
+A working, local **Jakarta public-facility discovery MVP** for an academic Venture Creation project. Built with Python, Streamlit, Pandas and SQLite, with a Folium/OpenStreetMap overview and Google Maps directions links.
 
 **Real seed snapshot:** 5,824 OpenStreetMap objects downloaded on 14 September 2026: **141 toilets, 5,645 places of worship, and 38 drinking-water points**. No facility records or verification records were invented. See [DATA_QUALITY.md](DATA_QUALITY.md) for measured completeness and limitations.
 
@@ -10,16 +10,18 @@ People can find a mall or station on a conventional map, yet still need to inves
 
 ## Features
 
-- Toilet-first discovery with a featured nearest option, nearby cards and a coordinated selected map pin.
+- Toilet-first discovery with a featured nearest option, nearby cards and an interactive OpenStreetMap overview.
 - Prayer spaces and drinking water under Other facilities; accessibility, free and public access under Preferences.
-- Interactive map with clusters, warm numbered pins and concise popups.
+- Numbered brown toilet pins, blue mall/SPBU landmarks, purple secondary facilities and a distinct starting point. All current facilities remain unverified; selecting a venue never changes the toilet count or ranking.
+- Desktop results scroll independently below persistent search/preferences controls; mobile uses normal page scrolling, with controls followed by the map and results.
+- Google Maps coordinate and directions links work without a key. All matching mall/SPBU landmarks in the search radius appear on the map, independently of list pagination.
 - Approximate landmark starting points or custom latitude/longitude; nearest options ranked by Haversine distance.
 - Radius, name/address, religion, wheelchair, fee and explicit-access filters.
 - Designed facility-detail dialog and Google Maps walking-directions handoff.
 - Separate Data & trust view for original OSM links, tags, refresh/edit timestamps and downloads.
 - Explicit unknowns: no inferred opening status, cleanliness, accessibility or verification.
 - Full-snapshot Data & trust view, category counts, attribute completeness and download options.
-- Local SQLite observation form with availability, optional cleanliness and issue notes. All reports remain pending review.
+- Local SQLite observation form plus an immediately visible preview of structured visitor reports. Pending/reviewed labels are retained; private written notes, contributor details and rejected reports stay out of the public preview.
 - Separate raw snapshots and normalized JSON/CSV; the app never queries Overpass on a normal page load.
 - Separate venue context for malls, SPBU, stations and six other venue categories, with conservative “near”, “at” and “inside” wording.
 - Licensed Wikimedia venue photographs, source/creator/licence links, and optional Google Places photos when configured.
@@ -33,10 +35,10 @@ The virtual environment and real dataset are already installed in this folder:
 ```bash
 cd "/Users/hugowahyubagas/Documents/Venture Creation"
 source .venv/bin/activate
-python -m streamlit run app.py --server.address 127.0.0.1 --server.port 8501
+python -m streamlit run app.py --server.address 127.0.0.1 --server.port 8502
 ```
 
-Open [Lokito](http://127.0.0.1:8501). If it is already running, open that address directly. Stop a terminal-launched server with Ctrl+C. If port 8501 is occupied by another app, use `--server.port 8502` and open port 8502.
+Open [Lokito](http://127.0.0.1:8502). If it is already running, open that address directly. Stop a terminal-launched server with Ctrl+C before restarting after Python-module changes. Choose another free port only if 8502 belongs to a different app.
 
 ## Install on another computer
 
@@ -72,7 +74,15 @@ python -m facility_finder.enrich_places --refresh --photo-limit 60
 
 The first command reads a valid existing enrichment cache without remote calls. If none exists, it acquires one. The refresh explicitly queries venue geometry and media; failures retain the last valid cache. Normal app reruns read local data. Browser image and map-tile requests still need internet.
 
-The 6 October cache adds context to **1,170 facilities**, including **65 of the 141 toilets**. **36 facilities, including 21 toilets**, have Wikimedia venue photographs. See [the enrichment handover](docs/ENRICHMENT_HANDOVER.md) for relationship counts, thresholds, setup, feedback privacy, QA and limitations.
+The 6 October cache adds context to **1,170 facilities**, including **65 of the 141 toilets**. There are **28 photographed venues**, and **41 facility associations (24 toilets)** carry photos. Near Bundaran HI, Plaza Indonesia and Grand Indonesia have independent venue cards and Wikimedia photos; neither is presented as a mapped toilet. See [the enrichment handover](docs/ENRICHMENT_HANDOVER.md) for source rules and measured coverage.
+
+### Maps and navigation
+
+The discovery page uses OpenStreetMap tiles through Folium/Leaflet. No Google API key or billing setup is required for the overview or outbound Google Maps coordinate links. Brown dashed numbered pins mean mapped toilets that have not been verified by Lokito; blue M/S pins mean mall/SPBU landmarks. Clusters keep these categories separate. The source schema currently contains only `Not community verified` and no verification dates, so no positive verification style is displayed or inferred from visitor reports.
+
+The map includes all matching mall/SPBU landmarks within the selected radius, including venues with an existing toilet association; their notice reflects that association. It displays up to 60 facility results, including the selected facility. The list remains browsable beyond that limit. Venue source labels are plain text in discovery/details; official OSM attribution and the Data & trust evidence view remain available.
+
+`facility_finder/google_map.py` retains the earlier optional Embed helper for compatibility, but the discovery page does not call it. Setting `GOOGLE_MAPS_EMBED_API_KEY` does not replace the OSM overview. Google Places photos, if configured separately, remain on their dedicated page.
 
 ### Optional Google Places and owner feedback access
 
@@ -135,7 +145,9 @@ app.py                         Streamlit discovery, Data & trust and About views
 facility_finder/
   ingest.py                    Overpass querying, retries and raw caching
   data.py                      Normalization, quality audit, filters and Haversine
-  maps.py                      Folium map, numbered markers and escaped popups
+  maps.py                      Interactive Folium/OSM renderer and marker legend
+  google_map.py                Google coordinate links; retained optional Embed helper
+  community_ui.py              Public structured report preview
   presentation.py              Selection, formatting and directions URLs
   ui.py                        Consumer cards, brand and detail helpers
   evidence.py                  Data & trust and venture content
@@ -174,7 +186,7 @@ flowchart LR
     RAW --> CLEAN[Normalize and audit]
     CLEAN --> CACHE[Local JSON / CSV + quality report]
     CACHE --> APP[Streamlit toilet-first discovery]
-    APP --> MAP[Folium map + nearby options]
+    APP --> MAP[Google Maps link / optional embed]
     APP --> REPORTS[SQLite pending observations]
     REPORTS -. future moderation .-> VERIFIED[Verified facility enrichment]
 ```
@@ -192,7 +204,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-Tests use explicitly synthetic edge-case fixtures and temporary databases, alongside the **real** bundled cache. Synthetic fixtures are never inserted into the real dataset. Streamlit AppTest checks category changes, empty searches, custom locations, strict filters, observations, enrichment fallback and private product feedback. Live HTTP requests are blocked throughout the test suite; Google responses are mocked. The October enrichment iteration passes **68 tests**, preserving all 30 earlier tests. See [the October QA record](docs/ENRICHMENT_QA.md), [redesign notes](docs/REDESIGN_NOTES.md), and the historical [MVP QA](docs/QA_RESULTS.md).
+Tests use synthetic edge cases and temporary databases alongside the **real** bundled cache. Synthetic fixtures are never inserted into the real dataset. AppTest covers discovery, empty states, map selection, inline observations, enrichment fallback and private feedback. Live HTTP is blocked throughout the suite; Google responses are mocked. **83 tests pass.** See [current QA](docs/OSM_MAP_QA.md) and the [earlier enrichment QA](docs/ENRICHMENT_QA.md).
 
 ## Sources and attribution
 
@@ -206,8 +218,8 @@ Tag semantics follow the OSM documentation: [toilets](https://wiki.openstreetmap
 - A worship object may have restricted entry and is not automatically a public prayer room. Religion is shown and filterable.
 - Accessibility covers tagged objects in the three categories only; it does not establish an accessible walking route or accessible internal facilities.
 - “Free” matches `fee=no`; explicit public access matches `access=yes/permissive`; wheelchair matches `yes/designated`. Unknowns are excluded by strict filters, and `limited` is not treated as full access.
-- Default search is within **5 km** of an approximate landmark. Choose “Any distance” for all matches. Only the nearest 60 markers render; every match remains selectable and downloadable, and a selected distant record is added to the map.
+- Default search is within **5 km** of an approximate landmark. Choose “Any distance” for all matches. The overview shows up to 60 matching facilities and all matching mall/SPBU landmarks; every facility remains browsable and downloadable.
 - Haversine distance is not travel time or a navigable route; rivers, entrances, private land and roads are not considered.
-- Dataset loading and discovery work without Overpass. Map tiles and frontend map libraries require network access or prior browser caching; fully offline map rendering is not promised.
+- Dataset loading and discovery work without Overpass. OSM tiles, map frontend assets, Google Maps and Wikimedia photos require network access; offline map rendering is not promised.
 - Wi-Fi, nursing rooms, charging, GPS, in-app routing, payments, user accounts, moderation, provider onboarding and broader geographic expansion are future work.
 - No market demand, willingness to pay, revenue or real-time reliability has been established.
