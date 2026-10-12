@@ -9,7 +9,7 @@ import requests
 from facility_finder import enrichment as en
 from facility_finder import enrich_places as pipeline
 from facility_finder import media
-from facility_finder.venue_ui import display_title, context_copy, photo_html
+from facility_finder.venue_ui import display_title, context_copy, photo_html, nearby_venue_html
 
 
 @pytest.fixture(autouse=True)
@@ -112,6 +112,50 @@ def test_build_complete_snapshot_and_partial_rejection(monkeypatch):
     with pytest.raises(ValueError,match='Incomplete'): pipeline.build(snapshot,[facility()])
 
 
+def test_build_keeps_valid_media_when_other_lookups_fail(monkeypatch):
+    monkeypatch.setattr(pipeline,'validate_response',lambda x: None)
+    first=venue(1,name='First Mall',lon=.001)
+    second=venue(2,name='Second Mall',lon=.002)
+    others=[venue(i+3,cat=cat,lon=10+i) for i,cat in enumerate(en.LIMITS) if cat!='mall']
+    monkeypatch.setattr(pipeline,'normalize_venues',lambda elements:[first,second,*others])
+    snapshot={'payload':{'elements':[]},'fetched_at':'2026-10-06','endpoint':'https://example.test','query':'fixture'}
+    previous={'schema_version':1,'records':{'node/900':match()}}
+    def resolver(item):
+        if item['venue_name']=='Second Mall': raise ValueError('Commons page unavailable')
+        return photo()
+    result=pipeline.build(snapshot,[facility()],resolver=resolver,previous=previous,photo_limit=2)
+    assert result['venues']['way/1']['photo']['filename']==photo()['filename']
+    assert result['venues']['way/2']['photo'] is None
+    assert result['metadata']['media_failures']==['way/2']
+    assert result['metadata']['status']=='context_complete_media_partial'
+    assert result['metadata']['media_attempted']==2
+    previous=result
+    def limited(item): raise media.MediaRateLimited('provider backoff')
+    again=pipeline.build(snapshot,[facility()],resolver=limited,previous=previous,photo_limit=60)
+    assert again['venues']['way/1']['photo']==result['venues']['way/1']['photo']
+    assert again['metadata']['media_attempted']==1 and again['metadata']['media_rate_limited']
+
+
+def test_wikidata_name_search_requires_nearby_coordinates(monkeypatch):
+    resolver=media.Wikimedia()
+    tags={'_venue_name':'Example Mall','_venue_latitude':0.,'_venue_longitude':0.}
+    entity={'entities':{'Q123':{'claims':{'P18':[{'mainsnak':{'datavalue':{'value':'Example.jpg'}}}],
+        'P625':[{'mainsnak':{'datavalue':{'value':{'latitude':30.,'longitude':30.}}}}]}}}}
+    resolver.get=Mock(side_effect=[{'search':[{'label':'Example Mall','id':'Q123'}]},entity])
+    assert resolver.filename(tags) is None
+    entity['entities']['Q123']['claims']['P625'][0]['mainsnak']['datavalue']['value']={'latitude':.001,'longitude':.001}
+    resolver.get=Mock(return_value={'search':[{'label':'Example Mall','id':'Q123'}]})
+    assert resolver.filename(tags)=='File:Example.jpg'
+
+
+def test_commons_category_lookup_uses_source_category():
+    resolver=media.Wikimedia()
+    resolver.get=Mock(return_value={'query':{'pages':{}}})
+    assert resolver.photo({'venue_name':'Grand Indonesia','tags':{'wikimedia_commons':'Category:Grand Indonesia'}}) is None
+    params=resolver.get.call_args.kwargs['params']
+    assert params['generator']=='categorymembers' and params['gcmtitle']=='Category:Grand Indonesia'
+
+
 def test_wikimedia_metadata_and_html_attribution():
     p=photo()
     payload={'query':{'pages':{'1':{'title':p['filename'],'imageinfo':[{'thumburl':p['thumbnail_url'],
@@ -145,3 +189,31 @@ def test_context_long_names_escape_and_missing_image():
     markup=context_copy(row,detail=True)
     assert '<script>' not in markup and '&lt;script&gt;' in markup and 'Location label by Lokito' in markup
     assert photo_html(None)=='' and context_copy(facility())==''
+
+
+def test_nearby_venues_include_malls_without_claiming_toilet_and_apply_filters():
+    catalog={
+        'way/1': {'venue_id':'way/1','venue_name':'Plaza Indonesia','venue_category':'mall','latitude':0.,'longitude':.001,'source_url':'https://www.openstreetmap.org/way/1'},
+        'node/2': {'venue_id':'node/2','venue_name':'SPBU Sudirman','venue_category':'fuel','latitude':0.,'longitude':.002,'source_url':'https://www.openstreetmap.org/node/2'},
+        'way/3': {'venue_id':'way/3','venue_name':'Far mall','venue_category':'mall','latitude':0.,'longitude':1.,'source_url':'https://www.openstreetmap.org/way/3'},
+    }
+    nearby=en.nearby_venues(catalog,(0.,0.),radius_km=1)
+    assert [place['venue_name'] for place in nearby]==['Plaza Indonesia','SPBU Sudirman']
+    assert en.nearby_venues(catalog,(0.,0.),search='plaza')[0]['venue_id']=='way/1'
+    assert en.nearby_venues(catalog,(0.,0.),categories=('mall',))[0]['venue_category']=='mall'
+    assert [p['venue_id'] for p in en.nearby_venues(catalog,(0.,0.),radius_km=1,exclude_ids={'way/1'})]==['node/2']
+    markup=nearby_venue_html(nearby[0],(0.,0.))
+    assert 'Plaza Indonesia' in markup and 'Sumber data: OpenStreetMap' in markup
+    assert 'No toilet location is explicitly linked inside this venue' in markup
+    assert 'does not mean the venue has no toilets' in markup
+    assert 'href="https://www.openstreetmap.org/' not in markup
+
+
+def test_map_contains_separate_blue_venue_pin_with_explicit_caveat():
+    import pandas as pd
+    from facility_finder.maps import build_map
+    venue={'venue_id':'way/1','distance_km':0.157,'venue_name':'Plaza Indonesia','venue_category':'mall','latitude':-.001,'longitude':.001,
+           'source_url':'https://www.openstreetmap.org/way/1'}
+    rendered=build_map(pd.DataFrame(columns=['facility_id','latitude','longitude']), (0.,0.), venues=[venue]).get_root().render()
+    assert 'place: Mall: Plaza Indonesia' in rendered
+    assert 'No toilet location is explicitly linked inside this venue' in rendered

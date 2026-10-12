@@ -1,10 +1,10 @@
 # Venue enrichment and feedback QA — 6 October 2026
 
-This record covers the October implementation, including the final resumed pass after the user pushed the initial work to GitHub. It does not claim physical-device certification or a live Google Places test.
+Current suite: **83 tests pass**. The restored OSM map, responsive scroll layout, inline-report preview and current browser checks are recorded in [OSM_MAP_QA.md](OSM_MAP_QA.md). The rest of this document is the historical pre-migration Folium QA record; its test counts, screenshots and database observations describe that earlier run only.
 
 ## Automated validation
 
-Baseline: 30 tests passed before edits. Final: **68 tests passed** with the existing 30 preserved. Run `python -m pytest -q` from the activated project environment. The suite blocks live HTTP requests globally; Places response tests use mock sessions. Files and SQLite databases created by tests use pytest temporary directories.
+Earlier enrichment baseline: 30 tests passed before edits; 68 passed at the end of that historical run. Run `python -m pytest -q` for the current 83-test suite. Live HTTP requests are blocked globally; API tests use mock sessions, and synthetic files/databases use pytest temporary directories.
 
 Coverage includes explicit association; polygon containment, holes and boundaries; invalid geometry; non-node containment rejection; all nine distance thresholds; ambiguity; deterministic matching; duplicate/unnamed venues; long names and escaping; cache generation, malformed/empty caches and byte-for-byte preservation on failed refresh; Wikimedia parsing, licence and URL validation; missing photos; disabled and mocked Google calls; feedback validation, minimal context, idempotency, persistence and owner gating; and real consumer journeys with/without enrichment.
 

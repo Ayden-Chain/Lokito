@@ -91,12 +91,16 @@ def marker_selection(event, displayed):
     # streamlit-folium returns popup text, not its HTML attributes. The visible
     # ordinal in the tooltip distinguishes separate OSM objects at one point.
     tooltip = event.get("last_object_clicked_tooltip") or ""
+    if tooltip.strip().startswith('place:') or tooltip.strip() == 'Your starting point':
+        return None
     number = re.match(r"^(\d+)\. ", tooltip.strip())
     if number and "result_number" in displayed:
         numbered = displayed[displayed.result_number == int(number.group(1))]
         if len(numbered) == 1:
             return numbered.iloc[0].facility_id
     popup = event.get("last_object_clicked_popup") or ""
+    if 'data-venue-id=' in popup:
+        return None
     match = re.search(r'data-facility-id=[\"\']((?:node|way|relation)/[0-9]+)[\"\']', popup)
     if match and match.group(1) in set(displayed.facility_id):
         return match.group(1)

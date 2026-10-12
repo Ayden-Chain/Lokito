@@ -38,12 +38,12 @@ def render_trust(facilities, quality, selected_id, enrichment=None):
                  'Open to the public matches access=yes/permissive. Unknown and limited wheelchair access do not pass the accessibility filter. '
                  'These are source claims, not field checks by Lokito. Being listed does not guarantee a facility is open now.')
         st.write('Distances use the Haversine formula and are straight-line estimates. Directions open Google Maps with your chosen starting point and destination; Lokito does not calculate routes or travel time.')
-        st.write('Map markers are limited to the nearest 60 matches, plus the selected facility when needed. All matches remain browsable through Show more nearby.')
+        st.write('The interactive OpenStreetMap overview distinguishes numbered facility pins, blue mall/SPBU landmarks and your starting point. Venue pins do not change the toilet count or ranking. Google Maps links open the selected coordinates or directions.')
     with st.expander('Coverage, integrity and limitations'):
         st.write(f"Scope: {quality['scope']}. OSM database timestamp: {quality['osm_base_timestamp']}.")
         st.write(f"Duplicate normalized IDs: {quality['normalized_duplicate_ids']}. Rejected coordinates: {quality['ingestion']['missing_or_invalid_coordinates']}.")
         st.write('Mapping effort varies by neighborhood. Indoor toilets and prayer rooms may be missing. Worship facilities may restrict entry. Drinking-water points are not current water-quality tests. Area centers may differ from entrances.')
-        st.write('Facility data work from the local cache. Map tiles and frontend map assets need internet or browser caching. The map uses OpenStreetMap tiles; attribution is also visible on the map.')
+        st.write('Facility data work from the local cache. OpenStreetMap tiles, map frontend assets, Google Maps links and Wikimedia photos require internet. Source attribution is retained. All current facilities are unverified; source presence and visitor reports do not establish current availability.')
         st.dataframe(pd.DataFrame([{'Category':CATEGORY_LABELS[cat], 'Attribute':field, **counts}
                                   for cat, values in quality['completeness_by_category'].items() for field,counts in values.items()]), hide_index=True)
     match = facilities[facilities.facility_id == selected_id]

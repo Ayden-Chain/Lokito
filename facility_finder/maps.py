@@ -4,8 +4,9 @@ from html import escape
 import folium
 from folium.plugins import MarkerCluster
 
-from facility_finder.presentation import facility_name, known_details, unknown_summary, directions_url, map_view_for_selection
-from facility_finder.venue_ui import display_title
+from facility_finder.presentation import distance_label, known_details, unknown_summary, directions_url, map_view_for_selection
+from facility_finder.venue_ui import display_title, photo_html, venue_notice
+from facility_finder.google_map import map_url
 
 MAP_CSS = """
 <style>
@@ -13,13 +14,18 @@ html,body{margin:0!important;padding:0!important;height:100%!important}
 .folium-map,.leaflet-container{height:100vh!important;background:#ECE7DF;font-family:system-ui,sans-serif}
 .leaflet-tile-pane{filter:saturate(.12) sepia(.12)}
 .lokito-marker{background:transparent!important;border:0!important}
-.lokito-pin{width:32px;height:32px;border:2px solid #A6422A;border-radius:50% 50% 50% 8px;transform:rotate(-45deg);background:#FFFDFA;box-shadow:0 2px 7px #44302030;display:flex;align-items:center;justify-content:center}
+.lokito-pin{width:32px;height:32px;border:2px dashed #A6422A;border-radius:50% 50% 50% 8px;transform:rotate(-45deg);background:#FFFDFA;box-shadow:0 2px 7px #44302030;display:flex;align-items:center;justify-content:center}
 .lokito-pin span{transform:rotate(45deg);font-size:12px;font-weight:750;color:#8C3723}
-.lokito-pin.selected{background:#A6422A;border-color:#FFFDFA;outline:2px solid #A6422A;width:38px;height:38px}.lokito-pin.selected span{color:white}
+.lokito-pin.selected{outline:3px solid #292622;outline-offset:3px}.lokito-pin.other{border-color:#79549A;background:#F2EAF8}.lokito-pin.other span{color:#674387}
 .lokito-origin{width:16px;height:16px;background:#292622;border:3px solid white;border-radius:50%;box-shadow:0 0 0 7px #29262218}
+.lokito-place{width:30px;height:30px;border:2px solid white;border-radius:50%;background:#2868AD;color:white;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 7px #44302040}
 .lokito-cluster{border:1px solid #AA7967;background:#EDE0D3;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#654536;font-weight:700}
+.lokito-place-cluster{border:1px solid #2868AD;background:#E2EDFA;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#1C4C81;font-weight:700}
+.lokito-place.selected{outline:3px solid #292622;outline-offset:3px}
+.venue-photo{margin:10px 0 0}.venue-photo-frame{height:110px;background-size:cover;background-position:center;border-radius:8px}.venue-photo figcaption{display:flex;flex-direction:column;font-size:10px;gap:3px}.venue-photo figcaption small{font-size:9px}
 .leaflet-marker-icon:focus-visible,.leaflet-control a:focus-visible{outline:3px solid #292622!important;outline-offset:5px}
 .leaflet-popup-content-wrapper{border-radius:14px}.leaflet-popup-content{margin:16px 19px;color:#292622;line-height:1.5}
+.leaflet-popup-content{max-height:calc(100vh - 85px)!important;overflow-y:auto}
 .leaflet-popup-content h3{font-size:17px;margin:0 0 6px;line-height:1.3;overflow-wrap:anywhere}.leaflet-popup-content p{margin:6px 0;font-size:12px}
 .leaflet-popup-content a.lokito-directions{display:block;background:#A6422A;color:white;text-decoration:none;text-align:center;padding:11px 12px;margin-top:12px;border-radius:8px;font-weight:600;font-size:13px}
 .leaflet-control-zoom{border:1px solid #D5CCBF!important;box-shadow:none!important;border-radius:9px!important;overflow:hidden}
@@ -40,10 +46,10 @@ def popup_html(row, origin=None):
             f'<h3>{title}</h3>{lines}<p style="font-size:10px;color:#766D62">Availability unknown · Not verified by Lokito</p>'
             f'<a class="lokito-directions" href="{escape(directions_url(row, origin), quote=True)}" '
             'target="_blank" rel="noopener noreferrer">Open directions ↗</a>'
-            '<p style="font-size:10px;color:#766D62;text-align:center">Opens Google Maps</p></div>')
+            '</div>')
 
 
-def build_map(df, origin, selected_id=None):
+def build_map(df, origin, selected_id=None, venues=None, selected_venue_id=None):
     selected_rows = df[df.facility_id == selected_id] if selected_id else df.iloc[:0]
     initial = map_view_for_selection(origin, selected_rows.iloc[0].to_dict() if len(selected_rows) else None)
     map_ = folium.Map(location=initial['center'], zoom_start=initial['zoom'], tiles="OpenStreetMap", control_scale=False,
@@ -58,11 +64,43 @@ def build_map(df, origin, selected_id=None):
     for i, row in enumerate(df.to_dict("records"), 1):
         number = int(row.get("result_number", i))
         selected = row["facility_id"] == selected_id
-        label = f'{number}. {display_title(row)}' + (' · Selected' if selected else '')
-        icon_html = f'<div class="lokito-pin{" selected" if selected else ""}"><span>{number}</span></div>'
+        label = f'{number}. {display_title(row)} · Not verified by Lokito' + (' · Selected' if selected else '')
+        category_class = "" if row["facility_category"] == "toilets" else " other"
+        icon_html = f'<div class="lokito-pin{category_class}{" selected" if selected else ""}"><span>{number}</span></div>'
         marker = folium.Marker([row["latitude"], row["longitude"]], title=escape(label),
             tooltip=escape(label), keyboard=True, z_index_offset=1000 if selected else 0,
             icon=folium.DivIcon(html=icon_html, icon_size=(40, 44), icon_anchor=(18, 36), class_name="lokito-marker"),
             popup=folium.Popup(popup_html(row, origin), max_width=280))
         marker.add_to(map_ if selected else cluster)
+    venue_cluster = MarkerCluster(name="Nearby malls and fuel stations", options={"disableClusteringAtZoom": 16},
+        icon_create_function="""function(cluster){return L.divIcon({html:String(cluster.getChildCount()),className:'lokito-place-cluster',iconSize:L.point(38,38)});} """).add_to(map_)
+    for place in venues or []:
+        title = escape(place['venue_name'])
+        category = 'Mall' if place['venue_category'] == 'mall' else 'SPBU'
+        target = {'latitude': place['latitude'], 'longitude': place['longitude']}
+        direction = escape(directions_url(target, origin), quote=True)
+        popup = (f'<div data-venue-id="{escape(place["venue_id"], quote=True)}" style="min-width:180px;max-width:250px"><h3>{title}</h3>'
+                 f'<p>{category} · {distance_label(place["distance_km"])} straight-line distance</p>'
+                 f'<p>{venue_notice(place)}</p>'
+                 f'<a class="lokito-directions" href="{direction}" target="_blank" rel="noopener noreferrer">Directions to venue ↗</a>'
+                 f'<p><a href="{escape(map_url((place["latitude"], place["longitude"])), quote=True)}" target="_blank" rel="noopener noreferrer">Buka di Google Maps ↗</a></p>'
+                 f'<p>Sumber data: OpenStreetMap</p>{photo_html(place.get("photo"))}</div>')
+        selected = place['venue_id'] == selected_venue_id
+        marker = folium.Marker([place['latitude'], place['longitude']], title=f'{category}: {title}',
+            tooltip=f'place: {category}: {title}', keyboard=True,
+            icon=folium.DivIcon(html=f'<div class="lokito-place{" selected" if selected else ""}">{"M" if place["venue_category"] == "mall" else "S"}</div>', icon_size=(34,34),
+                icon_anchor=(17,17), class_name='lokito-marker'),
+            popup=folium.Popup(popup, max_width=290, max_height=350))
+        marker.add_to(map_ if selected else venue_cluster)
     return map_
+
+
+def legend_html(category='toilets'):
+    # The source schema currently supports only "Not community verified".
+    # A listed OSM toilet or a visitor observation must never become a verified pin.
+    facility_label = 'Toilet · not verified' if category == 'toilets' else 'Facility · not verified'
+    facility_class = 'toilet' if category == 'toilets' else 'other'
+    return (f'<div class="map-legend" aria-label="Map legend"><span><i class="legend-{facility_class}">1</i>{facility_label}</span>'
+            '<span><i class="legend-venue">M/S</i>Mall / SPBU · venue</span>'
+            '<span><i class="legend-origin"></i>Starting point</span>'
+            '<span>Dark outline = selected</span></div>')

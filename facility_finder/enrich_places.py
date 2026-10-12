@@ -13,7 +13,7 @@ import requests
 from facility_finder.data import load_facilities, PROCESSED
 from facility_finder.enrichment import CACHE, LIMITS, normalize_venues, match_venue, load_cache, validate_cache
 from facility_finder.ingest import atomic_json, request_query, validate_response
-from facility_finder.media import Wikimedia, valid_photo
+from facility_finder.media import Wikimedia, valid_photo, MediaRateLimited
 
 LOG = logging.getLogger(__name__)
 
@@ -42,37 +42,65 @@ def build(snapshot, rows, resolver=None, previous=None, photo_limit=60):
     venue_by_id = {v['venue_id']:v for v in venues}
     photos={c['venue_id']:c['photo'] for c in (previous or {}).get('records',{}).values()
             if valid_photo(c.get('photo'))}
+    photos.update({vid:v['photo'] for vid,v in (previous or {}).get('venues',{}).items()
+                   if valid_photo(v.get('photo'))})
+    # Keep named places discoverable independently of whether any toilet is
+    # mapped there. Raw geometry remains in the separate source snapshot.
+    catalog={v['venue_id']:{k:v[k] for k in ('venue_id','venue_name','venue_category','latitude','longitude','source_url')}
+             | {'source':'OpenStreetMap',
+                'tags':{k:v['tags'][k] for k in ('wikidata','wikipedia','wikimedia_commons','image') if v['tags'].get(k)},
+                'photo':photos.get(v['venue_id'])} for v in venues}
     errors = []
     toilet_venues={records[r['facility_id']]['venue_id'] for r in rows if r['facility_category']=='toilets' and r['facility_id'] in records}
-    media_candidates=sorted({c['venue_id'] for c in records.values()}, key=lambda v:(v not in toilet_venues,v))
-    media_candidates=[v for v in media_candidates if any(venue_by_id[v]['tags'].get(k) for k in ('wikidata','wikipedia','wikimedia_commons','image'))]
+    media_candidates=list(catalog)
+    media_candidates.sort(key=lambda vid:(
+        0 if catalog[vid]['venue_name'].casefold() in ('plaza indonesia','grand indonesia','grand indonesia shopping town') else
+        1 if vid in toilet_venues else 2 if catalog[vid]['venue_category']=='mall' else 3,
+        (catalog[vid]['latitude']+6.195)**2+(catalog[vid]['longitude']-106.823)**2,vid))
+    media_candidates=[vid for vid in media_candidates if catalog[vid]['venue_category']=='mall' or
+                      any(venue_by_id[vid]['tags'].get(k) for k in ('wikidata','wikipedia','wikimedia_commons','image'))]
+    media_candidates=[vid for vid in media_candidates if vid not in photos]
+    attempted=0
+    rate_limited=False
     if resolver:
         for vid in media_candidates[:photo_limit]:
             venue = venue_by_id[vid]
-            if not any(venue['tags'].get(k) for k in ('wikidata','wikipedia','wikimedia_commons','image')): continue
+            if not any(venue['tags'].get(k) for k in ('wikidata','wikipedia','wikimedia_commons','image')) and venue['venue_category']!='mall': continue
             try:
+                attempted+=1
                 photo = resolver(venue)
-                photos[vid]=photo if valid_photo(photo) else None
+                if valid_photo(photo): photos[vid]=photo
+            except MediaRateLimited:
+                errors.append(vid)
+                rate_limited=True
+                LOG.warning('Wikimedia requested backoff; keeping successful photos and stopping this batch.')
+                break
             except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
                 errors.append(vid)
-                LOG.warning('Photo source failed for %s (%s); no image invented.',vid,type(exc).__name__)
+                LOG.warning('Photo source failed for %s (%s); no image invented.',vid,str(exc)[:180])
             time.sleep(.15)
-    if errors and previous and previous.get('records'):
-        raise ValueError('Incomplete media refresh; retaining entire previous cache')
+    # Media discovery is best-effort: atomically keep every previously valid
+    # image plus new verified results, while recording failed lookups. One
+    # missing Commons page must not discard unrelated successful photos.
+    for vid,place in catalog.items(): place['photo']=photos.get(vid)
     for c in records.values(): c['photo']=photos.get(c['venue_id'])
     counts = Counter(c['relationship_type'] for c in records.values())
     by_category = Counter(c['venue_category'] for c in records.values())
-    result = {'schema_version':1, 'records':records, 'metadata':{
+    result = {'schema_version':1, 'records':records, 'venues':catalog, 'metadata':{
         'generated_at':timestamp, 'venue_snapshot_at':snapshot['fetched_at'],
         'venue_osm_base':snapshot['payload'].get('osm3s',{}).get('timestamp_osm_base'),
         'source_endpoint':snapshot['endpoint'], 'source_query':snapshot['query'],
         'source_facilities_sha256':hashlib.sha256((PROCESSED/'facilities.json').read_bytes()).hexdigest(),
         'venues':len(venues), 'facilities_enriched':len(records), 'relationships':dict(counts),
-        'venue_categories':dict(by_category), 'wikimedia_photos':sum(bool(c['photo']) for c in records.values()),
-        'unique_photos':len({c['photo']['page_url'] for c in records.values() if c['photo']}),
+        'venue_categories':dict(by_category), 'venue_catalog':len(catalog),
+        'wikimedia_photos':sum(bool(v['photo']) for v in catalog.values()),
+        'unique_photos':len({v['photo']['page_url'] for v in catalog.values() if v['photo']}),
+        'facility_photo_associations':sum(bool(c.get('photo')) for c in records.values()),
+        'toilet_photo_associations':sum(bool(records.get(r['facility_id'],{}).get('photo')) for r in rows if r['facility_category']=='toilets'),
         'media_failures':errors, 'media_candidates':len(media_candidates), 'media_attempt_limit':photo_limit,
-        'media_deferred':max(0,len(media_candidates)-photo_limit), 'thresholds_metres':LIMITS,
-        'status':'context_complete_media_partial' if errors or len(media_candidates)>photo_limit else 'complete'}}
+        'media_attempted':attempted,'media_rate_limited':rate_limited,
+        'media_deferred':max(0,len(media_candidates)-attempted), 'thresholds_metres':LIMITS,
+        'status':'context_complete_media_partial' if errors or len(media_candidates)>attempted else 'complete'}}
     return validate_cache(result)
 
 
