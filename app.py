@@ -186,9 +186,8 @@ if st.session_state.view == 'discover':
                                           index=[*PRESETS, 'Custom point'].index(st.session_state.location), key='location_choice')
                     with st.form('location_form'):
                         if choice == 'Custom point':
-                            st.caption('Use an approximate location. Map tiles load from OpenStreetMap; directions open in Google Maps.')
-                            st.number_input('Latitude', min_value=-90.0, max_value=90.0, value=float(st.session_state.origin[0]), format='%.6f', key='custom_lat')
-                            st.number_input('Longitude', min_value=-180.0, max_value=180.0, value=float(st.session_state.origin[1]), format='%.6f', key='custom_lon')
+                            st.info('👆 Klik area mana saja di peta untuk mengatur titik awal yang baru.')
+                            st.caption('Map tiles load from OpenStreetMap; directions open in Google Maps.')
                         st.form_submit_button('Use this location', type='primary', on_click=apply_location, use_container_width=True)
             with prefs_col:
                 active = sum(bool(st.session_state[k]) for k in ('wheelchair','free','public','search')) + (st.session_state.religion != 'Any')
@@ -306,7 +305,7 @@ if st.session_state.view == 'discover':
                 use_container_width=True, key=f'map_{signature}_{st.session_state.selected_id}_{focus_venue}',
                 center=viewport['center'], zoom=viewport['zoom'],
                 returned_objects=['last_object_clicked', 'last_object_clicked_popup',
-                                  'last_object_clicked_tooltip', 'center', 'zoom'])
+                                  'last_object_clicked_tooltip', 'center', 'zoom', 'last_clicked'])
             clicked = marker_selection(event, visible)
             if clicked and clicked != st.session_state.selected_id:
                 st.session_state.selected_id = clicked
@@ -314,6 +313,17 @@ if st.session_state.view == 'discover':
                 if event.get('center') and event.get('zoom'):
                     st.session_state.map_view = {'center': (event['center']['lat'], event['center']['lng']), 'zoom': event['zoom']}
                 st.rerun()
+            elif event.get('last_clicked'):
+                lat = event['last_clicked']['lat']
+                lon = event['last_clicked']['lng']
+
+                # Update starting point jika titik klik berbeda dari origin saat ini
+                if st.session_state.origin != (lat, lon):
+                    st.session_state.origin = (lat, lon)
+                    st.session_state.location = 'Custom point'
+                    st.session_state.custom_lat = lat
+                    st.session_state.custom_lon = lon
+                    st.rerun()
             html(legend_html(category))
             st.caption('Pins show mapped locations, not confirmed entrances or current availability. Select a pin to explore.')
             if len(ranked) > 60:
