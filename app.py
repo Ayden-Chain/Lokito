@@ -295,6 +295,10 @@ if st.session_state.view == 'discover':
                     st.rerun()
     with map_col:
         with st.container(key='map-pane'):
+            if st.button('🧭 Kembalikan Peta ke Pusat Jakarta', use_container_width=True):
+                st.session_state.origin = PRESETS['Bundaran HI']
+                st.session_state.location = 'Bundaran HI'
+                st.rerun()
             visible = ranked.head(60)
             if row and row['facility_id'] not in set(visible.facility_id):
                 visible = pd.concat([visible.head(59), ranked[ranked.facility_id == row['facility_id']]])
@@ -319,6 +323,9 @@ if st.session_state.view == 'discover':
 
                 # Update starting point jika titik klik berbeda dari origin saat ini
                 if st.session_state.origin != (lat, lon):
+                    # UX Feedback: Beri tahu pengguna bahwa klik mereka terekam
+                    st.toast('Choosing Starting point...', icon='📍')
+
                     st.session_state.origin = (lat, lon)
                     st.session_state.location = 'Custom point'
                     st.session_state.custom_lat = lat
