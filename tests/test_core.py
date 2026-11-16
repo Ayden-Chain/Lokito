@@ -145,7 +145,7 @@ def test_popup_escapes_untrusted_tags_and_map_renders(snapshot):
     records[0]["name"] = '<script>alert("bad")</script>'
     html = popup_html(records[0])
     assert "<script>" not in html and "&lt;script&gt;" in html
-    assert "unknown" in html and "Not verified" in html
+    assert "belum tersedia" in html and "Belum dicek Lokito" in html
     rendered = build_map(pd.DataFrame(records), (-6.2, 106.8)).get_root().render()
     assert "L.map(" in rendered and "markerClusterGroup" in rendered and "OpenStreetMap" in rendered
 

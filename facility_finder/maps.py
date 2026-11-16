@@ -2,11 +2,41 @@
 from html import escape
 
 import folium
+from branca.element import MacroElement
 from folium.plugins import MarkerCluster
+from jinja2 import Template
 
 from facility_finder.presentation import distance_label, known_details, unknown_summary, directions_url, map_view_for_selection
 from facility_finder.venue_ui import display_title, photo_html, venue_notice
+from facility_finder.proxies import is_venue, KIND
 from facility_finder.google_map import map_url
+
+class GestureHandling(MacroElement):
+    """Scrolling the page never zooms the map; one finger never traps a phone."""
+    _template = Template("""
+{% macro script(this, kwargs) %}
+(function(map){
+  var box = map.getContainer();
+  var hint = L.DomUtil.create('div', 'lokito-gesture-hint', box);
+  var timer;
+  function show(text){ hint.textContent = text; hint.classList.add('show');
+    clearTimeout(timer); timer = setTimeout(function(){ hint.classList.remove('show'); }, 1200); }
+  map.scrollWheelZoom.disable();
+  box.addEventListener('wheel', function(e){
+    if (e.ctrlKey || e.metaKey) { map.scrollWheelZoom.enable(); hint.classList.remove('show'); }
+    else { map.scrollWheelZoom.disable(); show('Tahan Ctrl (atau ⌘) sambil scroll untuk zoom peta'); }
+  }, {capture: true, passive: true});
+  if (L.Browser.mobile) {
+    map.dragging.disable();
+    box.addEventListener('touchstart', function(e){
+      if (e.touches.length === 1) { show('Gunakan dua jari untuk menggeser peta'); }
+      else { hint.classList.remove('show'); }
+    }, {passive: true});
+  }
+})({{ this._parent.get_name() }});
+{% endmacro %}
+""")
+
 
 MAP_CSS = """
 <style>
@@ -17,6 +47,9 @@ html,body{margin:0!important;padding:0!important;height:100%!important}
 .lokito-pin{width:32px;height:32px;border:2px dashed #A6422A;border-radius:50% 50% 50% 8px;transform:rotate(-45deg);background:#FFFDFA;box-shadow:0 2px 7px #44302030;display:flex;align-items:center;justify-content:center}
 .lokito-pin span{transform:rotate(45deg);font-size:12px;font-weight:750;color:#8C3723}
 .lokito-pin.selected{outline:3px solid #292622;outline-offset:3px}.lokito-pin.other{border-color:#79549A;background:#F2EAF8}.lokito-pin.other span{color:#674387}
+.lokito-pin.venue{border:2px solid #2868AD;background:#EAF1FA}.lokito-pin.venue span{color:#1C4C81}
+.lokito-gesture-hint{position:absolute;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:#29262299;color:white;font:600 15px/1.4 system-ui,sans-serif;opacity:0;pointer-events:none;transition:opacity .2s}
+.lokito-gesture-hint.show{opacity:1}
 .lokito-origin{width:16px;height:16px;background:#292622;border:3px solid white;border-radius:50%;box-shadow:0 0 0 7px #29262218}
 .lokito-place{width:30px;height:30px;border:2px solid white;border-radius:50%;background:#2868AD;color:white;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 7px #44302040}
 .lokito-cluster{border:1px solid #AA7967;background:#EDE0D3;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#654536;font-weight:700}
@@ -37,15 +70,20 @@ html,body{margin:0!important;padding:0!important;height:100%!important}
 
 def popup_html(row, origin=None):
     title = escape(display_title(row))
-    details = known_details(row)
-    lines = ''.join(f'<p>{escape(value)}</p>' for _, value, _ in details[:3])
-    missing = unknown_summary(row, compact=True)
-    if missing:
-        lines += f'<p style="color:#706458">{escape(missing)}</p>'
+    if is_venue(row):
+        lines = f'<p>{escape(KIND[row["venue_category"]])}</p>'
+        status = 'Belum dicek oleh Lokito'
+    else:
+        details = known_details(row)
+        lines = ''.join(f'<p>{escape(value)}</p>' for _, value, _ in details[:3])
+        missing = unknown_summary(row, compact=True)
+        if missing:
+            lines += f'<p style="color:#706458">{escape(missing)}</p>'
+        status = 'Ketersediaan belum diketahui · Belum dicek Lokito'
     return (f'<div data-facility-id="{escape(row["facility_id"], quote=True)}" style="min-width:180px;max-width:250px">'
-            f'<h3>{title}</h3>{lines}<p style="font-size:10px;color:#766D62">Availability unknown · Not verified by Lokito</p>'
+            f'<h3>{title}</h3>{lines}<p style="font-size:10px;color:#766D62">{status}</p>'
             f'<a class="lokito-directions" href="{escape(directions_url(row, origin), quote=True)}" '
-            'target="_blank" rel="noopener noreferrer">Open directions ↗</a>'
+            'target="_blank" rel="noopener noreferrer">Arahkan ↗</a>'
             '</div>')
 
 
@@ -53,10 +91,11 @@ def build_map(df, origin, selected_id=None, venues=None, selected_venue_id=None)
     selected_rows = df[df.facility_id == selected_id] if selected_id else df.iloc[:0]
     initial = map_view_for_selection(origin, selected_rows.iloc[0].to_dict() if len(selected_rows) else None)
     map_ = folium.Map(location=initial['center'], zoom_start=initial['zoom'], tiles="OpenStreetMap", control_scale=False,
-                      prefer_canvas=True, scroll_wheel_zoom=True, touch_zoom=True,
+                      prefer_canvas=True, scroll_wheel_zoom=False, touch_zoom=True,
                       double_click_zoom=True, zoom_control=True)
     map_.get_root().header.add_child(folium.Element(MAP_CSS))
-    folium.Marker(origin, tooltip="Your starting point", title="Your starting point",
+    GestureHandling().add_to(map_)
+    folium.Marker(origin, tooltip="Titik awalmu", title="Titik awalmu",
                   icon=folium.DivIcon(html='<div class="lokito-origin"></div>', icon_size=(16, 16),
                                       icon_anchor=(8, 8), class_name="lokito-marker")).add_to(map_)
     cluster = MarkerCluster(name="Nearby facilities", options={"disableClusteringAtZoom": 16},
@@ -64,8 +103,9 @@ def build_map(df, origin, selected_id=None, venues=None, selected_venue_id=None)
     for i, row in enumerate(df.to_dict("records"), 1):
         number = int(row.get("result_number", i))
         selected = row["facility_id"] == selected_id
-        label = f'{number}. {display_title(row)} · Not verified by Lokito' + (' · Selected' if selected else '')
-        category_class = "" if row["facility_category"] == "toilets" else " other"
+        status = 'Biasanya ada toilet' if is_venue(row) else 'Belum dicek Lokito'
+        label = f'{number}. {display_title(row)} · {status}' + (' · Dipilih' if selected else '')
+        category_class = " venue" if is_venue(row) else ("" if row["facility_category"] == "toilets" else " other")
         icon_html = f'<div class="lokito-pin{category_class}{" selected" if selected else ""}"><span>{number}</span></div>'
         marker = folium.Marker([row["latitude"], row["longitude"]], title=escape(label),
             tooltip=escape(label), keyboard=True, z_index_offset=1000 if selected else 0,
@@ -80,9 +120,9 @@ def build_map(df, origin, selected_id=None, venues=None, selected_venue_id=None)
         target = {'latitude': place['latitude'], 'longitude': place['longitude']}
         direction = escape(directions_url(target, origin), quote=True)
         popup = (f'<div data-venue-id="{escape(place["venue_id"], quote=True)}" style="min-width:180px;max-width:250px"><h3>{title}</h3>'
-                 f'<p>{category} · {distance_label(place["distance_km"])} straight-line distance</p>'
+                 f'<p>{category} · {distance_label(place["distance_km"])} jarak garis lurus</p>'
                  f'<p>{venue_notice(place)}</p>'
-                 f'<a class="lokito-directions" href="{direction}" target="_blank" rel="noopener noreferrer">Directions to venue ↗</a>'
+                 f'<a class="lokito-directions" href="{direction}" target="_blank" rel="noopener noreferrer">Arahkan ↗</a>'
                  f'<p><a href="{escape(map_url((place["latitude"], place["longitude"])), quote=True)}" target="_blank" rel="noopener noreferrer">Buka di Google Maps ↗</a></p>'
                  f'<p>Sumber data: OpenStreetMap</p>{photo_html(place.get("photo"))}</div>')
         selected = place['venue_id'] == selected_venue_id
@@ -98,9 +138,10 @@ def build_map(df, origin, selected_id=None, venues=None, selected_venue_id=None)
 def legend_html(category='toilets'):
     # The source schema currently supports only "Not community verified".
     # A listed OSM toilet or a visitor observation must never become a verified pin.
-    facility_label = 'Toilet · not verified' if category == 'toilets' else 'Facility · not verified'
+    facility_label = 'Toilet terpetakan' if category == 'toilets' else 'Fasilitas terpetakan'
     facility_class = 'toilet' if category == 'toilets' else 'other'
-    return (f'<div class="map-legend" aria-label="Map legend"><span><i class="legend-{facility_class}">1</i>{facility_label}</span>'
-            '<span><i class="legend-venue">M/S</i>Mall / SPBU · venue</span>'
-            '<span><i class="legend-origin"></i>Starting point</span>'
-            '<span>Dark outline = selected</span></div>')
+    venue = ('<span><i class="legend-venue-pin">2</i>Tempat lain dengan toilet (minimarket, SPBU, mall, masjid, MRT)</span>'
+             if category == 'toilets' else '')
+    return (f'<div class="map-legend" aria-label="Keterangan peta"><span><i class="legend-{facility_class}">1</i>{facility_label}</span>'
+            f'{venue}<span><i class="legend-origin"></i>Titik awal</span>'
+            '<span>Garis tebal = dipilih</span></div>')

@@ -165,7 +165,7 @@ def test_wikimedia_metadata_and_html_attribution():
     parsed=media.parse_imageinfo(payload,'Example Mall')
     assert parsed['author']=='Example author' and media.valid_photo(parsed)
     markup=photo_html(parsed)
-    assert 'not necessarily a photo of the toilet' in markup and p['licence_url'] in markup
+    assert 'bukan foto toiletnya' in markup and p['licence_url'] in markup
     payload['query']['pages']['1']['imageinfo'][0]['extmetadata'].pop('LicenseUrl')
     assert media.parse_imageinfo(payload,'Example Mall') is None
     for invalid in ([], {'query':[]}, {'query':{'pages':[]}}, {'query':{'pages':{'1':{'imageinfo':{}}}}}):
@@ -185,9 +185,9 @@ def test_unsafe_or_unlicensed_media_hidden(field,value):
 def test_context_long_names_escape_and_missing_image():
     context=match(venues=[venue(name='<script>alert(1)</script> '+'Long venue '*30)])
     row=facility(venue_context=context)
-    assert 'near' in display_title(row)
+    assert 'dekat' in display_title(row)
     markup=context_copy(row,detail=True)
-    assert '<script>' not in markup and '&lt;script&gt;' in markup and 'Location label by Lokito' in markup
+    assert '<script>' not in markup and '&lt;script&gt;' in markup and 'Label lokasi oleh Lokito' in markup
     assert photo_html(None)=='' and context_copy(facility())==''
 
 
@@ -204,8 +204,7 @@ def test_nearby_venues_include_malls_without_claiming_toilet_and_apply_filters()
     assert [p['venue_id'] for p in en.nearby_venues(catalog,(0.,0.),radius_km=1,exclude_ids={'way/1'})]==['node/2']
     markup=nearby_venue_html(nearby[0],(0.,0.))
     assert 'Plaza Indonesia' in markup and 'Sumber data: OpenStreetMap' in markup
-    assert 'No toilet location is explicitly linked inside this venue' in markup
-    assert 'does not mean the venue has no toilets' in markup
+    assert 'Biasanya ada toilet' in markup and 'belum dicek oleh Lokito' in markup
     assert 'href="https://www.openstreetmap.org/' not in markup
 
 
@@ -216,4 +215,4 @@ def test_map_contains_separate_blue_venue_pin_with_explicit_caveat():
            'source_url':'https://www.openstreetmap.org/way/1'}
     rendered=build_map(pd.DataFrame(columns=['facility_id','latitude','longitude']), (0.,0.), venues=[venue]).get_root().render()
     assert 'place: Mall: Plaza Indonesia' in rendered
-    assert 'No toilet location is explicitly linked inside this venue' in rendered
+    assert 'belum dicek oleh Lokito' in rendered

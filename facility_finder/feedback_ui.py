@@ -65,6 +65,11 @@ def render_owner():
                     st.session_state.owner_retry_at=time.monotonic()+5
                     st.warning('The password did not match.')
             return
+        # Streamlit Cloud disks reset when the app sleeps or redeploys; download after each test session.
+        st.caption('The hosted server can wipe these files when the app sleeps or redeploys. Download them after each test session.')
+        from facility_finder.community import DB_PATH
+        st.download_button('Download feedback (CSV)', feedback.export_csv(feedback.db_path(),'product_feedback'), 'lokito-feedback.csv', 'text/csv')
+        st.download_button('Download visitor reports (CSV)', feedback.export_csv(DB_PATH,'reports'), 'lokito-reports.csv', 'text/csv')
         if st.button('Lock results'):
             st.session_state.pop('owner_proof',None)
             st.session_state.pop('owner_password',None)

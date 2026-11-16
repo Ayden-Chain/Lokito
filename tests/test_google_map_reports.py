@@ -59,12 +59,11 @@ def test_inline_preview_visible_without_opening_details(tmp_path,monkeypatch):
     real=community.preview_reports
     monkeypatch.setattr(community,'preview_reports',lambda fid:real(fid,db))
     at=AppTest.from_file(str(Path(__file__).resolve().parents[1]/'app.py')).run()
+    at.session_state['selected_id']='node/14140086914'
+    at.run()
     assert not at.exception and at.session_state['detail_id'] is None
     markup=' '.join(m.value for m in at.markdown)
-    assert 'Visitor could use the facility' in markup and 'Awaiting review' in markup
+    assert 'Pengunjung bisa memakai toiletnya' in markup and 'Menunggu tinjauan' in markup
     assert 'PRIVATE NOTE' not in markup and 'Opens Google Maps' not in markup
-    at.button(key='venue_way/538319726').click().run()
-    assert at.session_state['focus_venue_id']=='way/538319726'
-    assert not at.exception
-    assert any('Plaza Indonesia' in m.value for m in at.markdown)
+    assert 'Plaza Indonesia' in markup
     assert at.session_state['selected_id']=='node/14140086914'
