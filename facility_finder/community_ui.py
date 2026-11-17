@@ -7,23 +7,27 @@ import streamlit as st
 from facility_finder import community
 
 
-def render_report_preview(facility_id):
-    st.markdown('**Visitor reports**')
+def render_report_preview(facility_id, quiet=False):
+    """quiet=True shows nothing unless there are reports, keeping result cards short."""
     try:
         reports = community.preview_reports(facility_id)
     except (OSError, sqlite3.Error):
-        st.caption('Visitor reports are temporarily unavailable.')
+        if not quiet:
+            st.caption('Laporan pengunjung sedang tidak tersedia.')
         return
     if not reports:
-        st.caption('No visitor reports yet. You can add an observation in facility details.')
+        if not quiet:
+            st.markdown('**Laporan pengunjung**')
+            st.caption('Belum ada laporan pengunjung. Kamu bisa menambahkannya di bagian bawah detail ini.')
         return
-    labels = {'yes': 'Visitor could use the facility', 'no': 'Visitor could not use the facility',
-              'unknown': 'Availability was not checked'}
+    st.markdown('**Laporan pengunjung**')
+    labels = {'yes': 'Pengunjung bisa memakai toiletnya', 'no': 'Pengunjung tidak bisa memakai toiletnya',
+              'unknown': 'Ketersediaan tidak dicek'}
     for report in reports:
-        status = 'Reviewed report' if report['moderation_status'] == 'accepted' else 'Awaiting review'
+        status = 'Sudah ditinjau' if report['moderation_status'] == 'accepted' else 'Menunggu tinjauan'
         cleanliness = report['cleanliness']
-        rating = f'Reported cleanliness: {cleanliness}/5' if cleanliness is not None else 'Cleanliness not assessed'
+        rating = f'Kebersihan: {cleanliness}/5' if cleanliness is not None else 'Kebersihan tidak dinilai'
         st.markdown(f'<div class="report-note"><small>{escape(report["submitted_at"][:10])} · {status}</small>'
                     f'<p>{labels.get(report["available"], labels["unknown"])}</p><small>{rating}</small></div>',
                     unsafe_allow_html=True)
-    st.caption('Past visitor observations, not current availability or Lokito verification. Written notes remain private for review.')
+    st.caption('Laporan pengunjung sebelumnya, bukan ketersediaan saat ini atau verifikasi Lokito. Catatan tertulis tetap privat untuk ditinjau.')

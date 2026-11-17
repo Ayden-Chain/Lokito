@@ -5,8 +5,8 @@ from urllib.parse import urlencode
 
 from facility_finder.data import clean_text, valid_coordinates, haversine_km
 
-LABELS = {"toilets": "Toilet", "place_of_worship": "Place of worship", "drinking_water": "Drinking water point"}
-PLURALS = {"toilets": "toilets", "place_of_worship": "prayer spaces", "drinking_water": "drinking water points"}
+LABELS = {"toilets": "Toilet", "place_of_worship": "Tempat ibadah", "drinking_water": "Titik air minum"}
+PLURALS = {"toilets": "toilet", "place_of_worship": "tempat ibadah", "drinking_water": "titik air minum"}
 
 
 def known(value):
@@ -17,11 +17,19 @@ def facility_name(row):
     return str(row["name"]) if known(row.get("name")) else LABELS[row["facility_category"]]
 
 
-def distance_label(distance):
+def distance_parts(distance):
+    """("810", "m") or ("1,2", "km"): Indonesian decimal comma, rounded to 10 m."""
     value = float(distance)
     if not math.isfinite(value) or value < 0:
         raise ValueError("Distance must be finite and nonnegative")
-    return f"{round(value * 1000 / 10) * 10:.0f} m" if value < 1 else f"{value:.1f} km"
+    if value < 1:
+        return f"{round(value * 1000 / 10) * 10:.0f}", "m"
+    return f"{value:.1f}".replace(".", ","), "km"
+
+
+def distance_label(distance):
+    number, unit = distance_parts(distance)
+    return f"{number} {unit}"
 
 
 def directions_url(row, origin=None):
@@ -40,13 +48,13 @@ def directions_url(row, origin=None):
 def known_details(row):
     """Translate only understood values; retain unusual tags as source wording."""
     definitions = [
-        ("access", "Access", {"yes": "Open to the public", "permissive": "Public use permitted",
-          "customers": "For customers", "private": "Private access", "no": "No public access",
-          "permit": "Permit required", "members": "Members only"}),
-        ("fee", "Cost", {"no": "Free to use", "yes": "A fee applies"}),
-        ("wheelchair", "Wheelchair access", {"yes": "Wheelchair accessible", "designated": "Designated wheelchair access",
-          "limited": "Limited wheelchair access", "no": "Not wheelchair accessible"}),
-        ("opening_hours", "Opening hours", {}),
+        ("access", "Akses", {"yes": "Terbuka untuk umum", "permissive": "Boleh dipakai umum",
+          "customers": "Khusus pelanggan", "private": "Akses pribadi", "no": "Tidak untuk umum",
+          "permit": "Perlu izin", "members": "Khusus anggota"}),
+        ("fee", "Biaya", {"no": "Gratis", "yes": "Berbayar"}),
+        ("wheelchair", "Kursi roda", {"yes": "Ramah kursi roda", "designated": "Ada akses kursi roda khusus",
+          "limited": "Akses kursi roda terbatas", "no": "Tidak ramah kursi roda"}),
+        ("opening_hours", "Jam buka", {}),
     ]
     details = []
     for field, label, values in definitions:
@@ -57,13 +65,13 @@ def known_details(row):
 
 
 def unknown_summary(row, compact=False):
-    fields = (("access", "access"), ("fee", "fee")) if compact else (
-        ("access", "access"), ("fee", "fee"), ("opening_hours", "opening hours"), ("wheelchair", "wheelchair access"))
+    fields = (("access", "akses"), ("fee", "biaya")) if compact else (
+        ("access", "akses"), ("fee", "biaya"), ("opening_hours", "jam buka"), ("wheelchair", "akses kursi roda"))
     missing = [label for key, label in fields if not known(row.get(key))]
     if not missing:
         return ""
-    words = missing[0] if len(missing) == 1 else ", ".join(missing[:-1]) + " and " + missing[-1]
-    return words[0].upper() + words[1:] + " details haven't been added yet."
+    words = missing[0] if len(missing) == 1 else ", ".join(missing[:-1]) + " dan " + missing[-1]
+    return "Info " + words + " belum tersedia."
 
 
 def selected_facility(ranked, selected_id=None):
@@ -77,10 +85,11 @@ def selected_facility(ranked, selected_id=None):
 def map_view_for_selection(origin, row=None):
     """Fit the start and chosen place even in the compact 220px mobile map."""
     if row is None:
-        return {"center": origin, "zoom": 14}
+        return {"center": origin, "zoom": 15}
     distance = haversine_km(*origin, row['latitude'], row['longitude'])
     center = ((origin[0] + row['latitude']) / 2, (origin[1] + row['longitude']) / 2)
-    zoom = max(2, min(14, 14 - math.ceil(math.log2(max(distance, .8) / .8))))
+    # Close places get a street-level view; far ones still fit both points.
+    zoom = max(2, min(16, 16 - math.ceil(math.log2(max(distance, .25) / .25))))
     return {"center": center, "zoom": zoom}
 
 
@@ -91,7 +100,7 @@ def marker_selection(event, displayed):
     # streamlit-folium returns popup text, not its HTML attributes. The visible
     # ordinal in the tooltip distinguishes separate OSM objects at one point.
     tooltip = event.get("last_object_clicked_tooltip") or ""
-    if tooltip.strip().startswith('place:') or tooltip.strip() == 'Your starting point':
+    if tooltip.strip().startswith('place:') or tooltip.strip() in ('Your starting point', 'Titik awalmu'):
         return None
     number = re.match(r"^(\d+)\. ", tooltip.strip())
     if number and "result_number" in displayed:
@@ -111,3 +120,12 @@ def marker_selection(event, displayed):
     matches = displayed[(displayed.latitude - float(point["lat"])).abs().lt(1e-7) &
                         (displayed.longitude - float(point["lng"])).abs().lt(1e-7)]
     return matches.iloc[0].facility_id if len(matches) == 1 else None
+
+
+def new_click(event, last_stamp):
+    """streamlit-folium keeps returning the last pin click; return a stamp only for a new one."""
+    point = (event or {}).get("last_object_clicked")
+    if not point:
+        return None
+    stamp = (event.get("last_object_clicked_tooltip"), point.get("lat"), point.get("lng"))
+    return None if stamp == last_stamp else stamp

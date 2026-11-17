@@ -1,4 +1,6 @@
 """Private product research, separate from public facility observations."""
+import csv
+import io
 import os
 import sqlite3
 from collections import Counter
@@ -84,4 +86,18 @@ def summary(path=None):
         distributions={k:dict(conn.execute(f'SELECT {k},count(*) FROM product_feedback GROUP BY {k}').fetchall()) for k in fields}
         comments=[dict(r) for r in conn.execute("SELECT submitted_at,comment,score FROM product_feedback WHERE comment<>'' ORDER BY id DESC LIMIT 30")]
         return {'total':total,'average_score':average,'scored':scored,'distributions':distributions,'comments':comments}
+    finally: conn.close()
+
+
+def export_csv(path, table):
+    """All rows of one table as CSV bytes; empty when the database does not exist yet."""
+    target=Path(path)
+    if table not in ('product_feedback','reports'): raise ValueError('Unknown table')
+    if not target.exists(): return b''
+    conn=sqlite3.connect(target.resolve().as_uri()+'?mode=ro',uri=True)
+    try:
+        cursor=conn.execute(f'SELECT * FROM {table} ORDER BY 1')
+        out=io.StringIO(); writer=csv.writer(out)
+        writer.writerow([c[0] for c in cursor.description]); writer.writerows(cursor)
+        return out.getvalue().encode('utf-8')
     finally: conn.close()

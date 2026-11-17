@@ -28,20 +28,20 @@ def test_unknowns_are_compact_and_do_not_create_positive_claims():
     row = {'facility_category':'toilets','name':'unknown','fee':None,'access':'unknown','wheelchair':'unknown'}
     assert facility_name(row) == 'Toilet'
     assert known_details(row) == []
-    assert unknown_summary(row, compact=True) == "Access and fee details haven't been added yet."
-    assert 'opening hours' in unknown_summary(row)
-    assert 'wheelchair access' in unknown_summary(row)
+    assert unknown_summary(row, compact=True) == "Info akses dan biaya belum tersedia."
+    assert 'jam buka' in unknown_summary(row)
+    assert 'akses kursi roda' in unknown_summary(row)
     row.update(fee='no',access='customers',wheelchair='limited',opening_hours='Mo-Fr 08:00-17:00')
     values = [v for _,v,_ in known_details(row)]
-    assert 'Free to use' in values and 'For customers' in values and 'Limited wheelchair access' in values
-    assert 'Wheelchair accessible' not in values
+    assert 'Gratis' in values and 'Khusus pelanggan' in values and 'Akses kursi roda terbatas' in values
+    assert 'Ramah kursi roda' not in values
     assert unknown_summary(row) == ''
-    assert ('Opening hours','Mo-Fr 08:00-17:00','opening_hours') in known_details(row)
+    assert ('Jam buka','Mo-Fr 08:00-17:00','opening_hours') in known_details(row)
 
 
 def test_distance_labels_do_not_infer_walking_time():
     assert distance_label(.813) == '810 m'
-    assert distance_label(1.24) == '1.2 km'
+    assert distance_label(1.24) == '1,2 km'
     assert distance_label(0) == '0 m'
     with pytest.raises(ValueError):
         distance_label(-1)
@@ -100,3 +100,13 @@ def test_venue_popup_without_tooltip_cannot_select_colocated_toilet():
     event={'last_object_clicked':{'lat':-6.2,'lng':106.8},
            'last_object_clicked_popup':'<div data-venue-id="way/8">Mall</div>'}
     assert marker_selection(event,rows) is None
+
+
+def test_a_pin_click_is_handled_once_even_when_the_map_repeats_it():
+    from facility_finder.presentation import new_click
+    event = {'last_object_clicked': {'lat': -6.2, 'lng': 106.8}, 'last_object_clicked_tooltip': '3. Toilet'}
+    stamp = new_click(event, None)
+    assert stamp == ('3. Toilet', -6.2, 106.8)
+    # The same stale click after the user picked another card must not reselect the pin.
+    assert new_click(event, stamp) is None
+    assert new_click({}, stamp) is None and new_click(None, None) is None

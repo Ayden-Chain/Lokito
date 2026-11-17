@@ -145,3 +145,44 @@ button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{o
  .st-key-map-pane{order:1;width:100%}
  .st-key-results-pane{order:2;width:100%}
 }
+
+/* Usability pass: locate button, "usually has a toilet" results, pick mode, mobile action bar. */
+.st-key-locate{margin-bottom:2px}
+.index-dot.venue{background:#2868AD}
+.small-number.venue{border-color:#A9C2E0;background:#EAF1FA;color:#1C4C81}
+.legend-venue-pin{width:21px;height:21px;border:2px solid #2868AD;color:#1C4C81;border-radius:6px;background:#EAF1FA;font-size:11px}
+.st-key-pick-banner{margin-bottom:8px}
+.st-key-map-pane [data-testid="stButton"] button{min-height:40px;font-size:13px}
+@media(max-width:850px){
+ .st-key-feature-actions{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--paper);
+   padding:10px 18px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line);box-shadow:0 -6px 18px #29262214}
+ .block-container{padding-bottom:96px!important}
+}
+
+/* Polish pass: the original header, headline and Source Sans type stay as they were.
+   Nearest/selected is marked with soft tints, not a dark block. */
+.hero h1{text-wrap:balance}
+.stApp button,.stApp a{touch-action:manipulation}
+.sign-top{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.sign-badge{display:inline-flex;align-items:center;gap:6px;background:var(--soft);color:#82422D;font-size:13px;font-weight:700;padding:5px 11px;border-radius:999px;white-space:nowrap}
+.sign-badge.venue{background:#E6EEF7;color:#22548C}
+.sign-kind{font-size:13px;color:var(--muted)}
+.sign-distance{font-size:44px;font-weight:800;line-height:1;letter-spacing:-1.5px;margin:18px 0 6px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.sign-distance small{font-size:20px;font-weight:700;letter-spacing:0;margin-left:5px;color:var(--muted)}
+.st-key-featured .facility-title{font-weight:700!important}
+.st-key-featured:has(.sign-badge.venue){border-color:#9DB6D3}
+.venue-kicker{font-size:11px;letter-spacing:.3px}
+.bar-summary{display:none}
+.small-number{background:var(--card);border:1.5px solid #CFC4B7;color:#624B3C}
+.small-number.venue{border-color:#A9C2E0;background:#EAF1FA;color:#1C4C81}
+@media(max-width:850px){
+ .bar-summary{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin:0 2px 8px;color:var(--ink)}
+ .bar-summary b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ html{scroll-padding-bottom:120px}
+ .bar-summary span{color:var(--muted);white-space:nowrap;font-weight:600}
+ /* On phones the answer card matters more than map footnotes; Detail repeats the caveat. */
+ .st-key-map-pane [data-testid="stCaptionContainer"]{display:none}
+}
+@media(max-width:500px){
+ .sign-distance{font-size:38px}
+}
